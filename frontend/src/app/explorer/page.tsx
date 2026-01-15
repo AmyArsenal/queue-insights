@@ -109,7 +109,7 @@ export default function ExplorerPage() {
 
     // For filtered view, calculate from filtered regions/types
     let filteredProjectCount = overview.total_projects;
-    let filteredCapacity = overview.total_mw;
+    let filteredCapacity = overview.total_capacity_mw;
 
     if (globalFilters.region) {
       const regionData = regions.find((r) => r.region === globalFilters.region);
@@ -132,8 +132,8 @@ export default function ExplorerPage() {
     return {
       ...overview,
       total_projects: filteredProjectCount,
-      total_mw: filteredCapacity,
-      total_gw: filteredCapacity / 1000,
+      total_capacity_mw: filteredCapacity,
+      total_capacity_gw: filteredCapacity / 1000,
     };
   }, [overview, regions, types, globalFilters]);
 

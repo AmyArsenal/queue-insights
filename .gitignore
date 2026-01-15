@@ -1,0 +1,44 @@
+# Environment variables (NEVER commit!)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Node
+node_modules/
+.next/
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+coverage/
+.playwright/
+test-results/
+
+# Temp files
+tmpclaude-*
+nul
+
+# Data files (too large for git)
+*.xlsx
+*.pdf
+
+# Claude settings (local only)
+.claude/

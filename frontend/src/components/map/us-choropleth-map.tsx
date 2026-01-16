@@ -10,6 +10,8 @@ import {
 import { scaleQuantile } from "d3-scale";
 import { getMapData } from "@/lib/api";
 import type { MapDataResponse } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Plus, Minus, RotateCcw } from "lucide-react";
 
 // US TopoJSON - using the existing file
 const GEO_URL = "/geo/counties-10m.json";
@@ -79,6 +81,21 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
   const [mapData, setMapData] = useState<MapDataResponse | null>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState<[number, number]>([-96, 38]);
+
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(prev * 1.5, 8));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(prev / 1.5, 1));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setZoom(1);
+    setCenter([-96, 38]);
+  }, []);
 
   // Load map data - re-fetch when filters change
   useEffect(() => {
@@ -189,7 +206,16 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
           height: "100%",
         }}
       >
-        <ZoomableGroup center={[-96, 38]} zoom={1}>
+        <ZoomableGroup
+          center={center}
+          zoom={zoom}
+          onMoveEnd={({ coordinates, zoom: newZoom }) => {
+            setCenter(coordinates as [number, number]);
+            setZoom(newZoom);
+          }}
+          minZoom={1}
+          maxZoom={8}
+        >
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map((geo) => {
@@ -328,6 +354,41 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
           {mapData ? Math.round(mapData.by_county.reduce((sum, c) => sum + c.total_mw, 0) / 1000).toLocaleString() : "—"}
         </div>
         <div className="text-sm text-slate-400">GW</div>
+      </div>
+
+      {/* Zoom Controls */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-lg bg-slate-800/90 p-2 backdrop-blur-sm border border-slate-700">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
+          onClick={handleZoomIn}
+          title="Zoom in"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
+          onClick={handleZoomOut}
+          title="Zoom out"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <div className="h-4 w-px bg-slate-600" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
+          onClick={handleReset}
+          title="Reset view"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <span className="text-xs text-slate-400 px-2">
+          {Math.round(zoom * 100)}%
+        </span>
       </div>
     </div>
   );

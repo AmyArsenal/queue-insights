@@ -78,7 +78,21 @@ Web app visualizing US electricity interconnection queue data from LBNL "Queued 
 
 ### In Progress
 
-- [ ] **Phase 6: AI Agent Interface**
+- [ ] **Phase 5.5: UI Polish & Bug Fixes**
+  - Fix map heatmap (show data, not just boundaries)
+  - About page content
+  - Fix any broken UI components
+  - Mobile responsiveness check
+
+### Next Up
+
+- [ ] **Phase 6: Data Pipeline**
+  - See [DATA_PIPELINE.md](DATA_PIPELINE.md) for full details
+  - gridstatus integration (7 ISOs)
+  - Daily automated updates
+  - Data enrichment (geolocation, developer info, cluster analysis)
+
+- [ ] **Phase 7: AI Agent Interface**
   - OpenRouter integration (LLM routing: Gemini, Claude, GPT-4)
   - E2B sandbox for Python code execution
   - Tavily web search for real-time ISO news
@@ -87,7 +101,13 @@ Web app visualizing US electricity interconnection queue data from LBNL "Queued 
   - AI-generated charts and analysis
   - ReAct loop architecture
 
-- [ ] **Phase 7: Polish + Launch**
+- [ ] **Phase 8: Auth & User Features**
+  - Login/signup (OAuth)
+  - Saved queries
+  - Custom alerts
+  - User dashboard
+
+- [ ] **Phase 9: Polish + Launch**
   - Performance optimization
   - SEO + Open Graph
   - Error boundaries

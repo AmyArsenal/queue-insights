@@ -72,12 +72,14 @@ def search_projects(
     limit: int = Query(50, le=200),
 ):
     """
-    Search projects by name, developer, or utility.
+    Search projects by queue ID, project name, POI name, developer, or utility.
 
     Example: /api/projects/search/?q=NextEra
     """
     query = select(QueueProject).where(
+        (QueueProject.q_id.ilike(f"%{q}%")) |
         (QueueProject.project_name.ilike(f"%{q}%")) |
+        (QueueProject.poi_name.ilike(f"%{q}%")) |
         (QueueProject.developer.ilike(f"%{q}%")) |
         (QueueProject.utility.ilike(f"%{q}%"))
     ).limit(limit)

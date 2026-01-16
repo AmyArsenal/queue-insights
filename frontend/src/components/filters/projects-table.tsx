@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -11,8 +12,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import type { QueueProject } from "@/types";
+import { searchProjects } from "@/lib/api";
 
 interface ProjectsTableProps {
   projects: QueueProject[];
@@ -72,12 +75,52 @@ export function ProjectsTable({
   currentOffset,
   limit,
 }: ProjectsTableProps) {
-  if (error) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<QueueProject[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults(null);
+      setSearchError(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      setSearchError(null);
+      try {
+        const results = await searchProjects(searchQuery, 100);
+        setSearchResults(results);
+      } catch (err) {
+        setSearchError(err instanceof Error ? err.message : "Search failed");
+        setSearchResults(null);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults(null);
+    setSearchError(null);
+  }, []);
+
+  // Use search results if searching, otherwise use filtered projects
+  const displayProjects = searchResults !== null ? searchResults : projects;
+  const isSearchMode = searchQuery.length >= 2;
+
+  if (error && !isSearchMode) {
     return (
       <Card className="p-8 text-center">
         <p className="text-red-500">Error: {error}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Make sure the backend server is running at localhost:8000
+          Make sure the backend server is running
         </p>
       </Card>
     );
@@ -85,6 +128,37 @@ export function ProjectsTable({
 
   return (
     <Card className="overflow-hidden">
+      {/* Search Bar */}
+      <div className="border-b p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by Queue ID, project name, POI, developer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+              onClick={clearSearch}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {isSearchMode && !searching && searchResults !== null && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Found {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+          </p>
+        )}
+        {searchError && (
+          <p className="mt-2 text-sm text-red-500">{searchError}</p>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -100,21 +174,25 @@ export function ProjectsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {(loading || searching) ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">Loading projects...</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {searching ? "Searching..." : "Loading projects..."}
+                  </p>
                 </TableCell>
               </TableRow>
-            ) : projects.length === 0 ? (
+            ) : displayProjects.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  No projects found matching your filters.
+                  {isSearchMode
+                    ? `No projects found matching "${searchQuery}"`
+                    : "No projects found matching your filters."}
                 </TableCell>
               </TableRow>
             ) : (
-              projects.map((project) => (
+              displayProjects.map((project) => (
                 <TableRow key={project.id} className="hover:bg-muted/50">
                   <TableCell className="font-mono text-xs">
                     {project.q_id || "-"}
@@ -147,32 +225,34 @@ export function ProjectsTable({
         </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between border-t px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          Showing {currentOffset + 1} - {currentOffset + projects.length} results
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPrevPage}
-            disabled={currentOffset === 0 || loading}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onNextPage}
-            disabled={projects.length < limit || loading}
-          >
-            Next
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
+      {/* Pagination - hide when searching */}
+      {!isSearchMode && (
+        <div className="flex items-center justify-between border-t px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {currentOffset + 1} - {currentOffset + projects.length} results
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevPage}
+              disabled={currentOffset === 0 || loading}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNextPage}
+              disabled={projects.length < limit || loading}
+            >
+              Next
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 }

@@ -32,7 +32,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="https://emp.lbl.gov/queues" target="_blank" rel="noopener" className="hover:text-foreground">LBNL Queued Up</a></li>
               <li><Link href="/methodology" className="hover:text-foreground">Methodology</Link></li>
-              <li><Link href="/api" className="hover:text-foreground">API Access</Link></li>
+              <li><Link href="/api-docs" className="hover:text-foreground">API Access</Link></li>
             </ul>
           </div>
 

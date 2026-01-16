@@ -67,15 +67,16 @@ Web app visualizing US electricity interconnection queue data from LBNL "Queued 
     - Withdrawal rate + capacity outcomes
   - Charts respond to global filters
 
-### Next Up
+- [x] **Phase 5: Deployment & Web Hosting**
+  - [x] Initialize Git repository
+  - [x] Push to GitHub: https://github.com/AmyArsenal/queue-insights
+  - [x] CI/CD pipeline with GitHub Actions (lint, type check, build)
+  - [x] Deploy frontend to Vercel: https://queue-insights.vercel.app
+  - [x] Deploy backend to Railway: https://queue-insights-production.up.railway.app
+  - [x] Configure environment variables (connect Vercel to Railway)
+  - [x] Verify production deployment ✅
 
-- [ ] **Phase 5: Deployment & Web Hosting**
-  - Initialize Git repository
-  - Push to GitHub (public or private)
-  - Deploy frontend to Vercel
-  - Deploy backend to Railway
-  - Configure environment variables
-  - Verify production deployment
+### In Progress
 
 - [ ] **Phase 6: AI Agent Interface**
   - OpenRouter integration (LLM routing: Gemini, Claude, GPT-4)
@@ -98,7 +99,12 @@ Web app visualizing US electricity interconnection queue data from LBNL "Queued 
 
 ```
 queue-insights/
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # GitHub Actions CI/CD pipeline
 ├── frontend/
+│   ├── .npmrc                  # legacy-peer-deps for React 19
+│   ├── vercel.json             # Vercel deployment config
 │   ├── public/geo/             # TopoJSON files (states, counties)
 │   └── src/
 │       ├── app/
@@ -124,7 +130,8 @@ queue-insights/
 │       └── routes/
 │           ├── projects.py
 │           └── stats.py
-└── CLAUDE.md
+├── CLAUDE.md
+└── CONTRIBUTING.md             # Development workflow guide
 ```
 
 ---
@@ -226,10 +233,16 @@ Southeast:  #84CC16 (lime)
 ```
 
 **Deployment Steps:**
-1. `git init` → Create GitHub repo → `git push`
-2. Vercel: Import repo → Set `NEXT_PUBLIC_API_URL` → Auto-deploy
-3. Railway: Import repo → Set `DATABASE_URL`, `ANTHROPIC_API_KEY` → Auto-deploy
-4. Every `git push` triggers automatic redeployment
+1. ✅ `git init` → Create GitHub repo → `git push`
+2. ✅ Vercel: Import repo → Set root to `frontend` → Auto-deploy
+3. ⏳ Railway: Import repo → Set root to `backend` → Add env vars → Auto-deploy
+4. ⏳ Update Vercel `NEXT_PUBLIC_API_URL` with Railway URL
+5. Every `git push` triggers automatic redeployment
+
+**Live URLs:**
+- Frontend: https://queue-insights.vercel.app
+- Backend: https://queue-insights-production.up.railway.app
+- GitHub: https://github.com/AmyArsenal/queue-insights
 
 ---
 

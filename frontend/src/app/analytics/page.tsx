@@ -1,3 +1,5 @@
+"use client";
+
 import { ComingSoon } from "@/components/coming-soon";
 import { BarChart3 } from "lucide-react";
 

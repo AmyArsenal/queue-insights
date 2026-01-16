@@ -364,6 +364,7 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
           className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
           onClick={handleZoomIn}
           title="Zoom in"
+          aria-label="Zoom in"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -373,6 +374,7 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
           className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
           onClick={handleZoomOut}
           title="Zoom out"
+          aria-label="Zoom out"
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -383,6 +385,7 @@ export function USChoroplethMap({ className, filters }: USChoroplethMapProps) {
           className="h-8 w-8 text-slate-300 hover:text-white hover:bg-slate-700"
           onClick={handleReset}
           title="Reset view"
+          aria-label="Reset view"
         >
           <RotateCcw className="h-4 w-4" />
         </Button>

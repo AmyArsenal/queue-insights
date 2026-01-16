@@ -80,7 +80,7 @@ export function ProjectsTable({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Debounced search
+  // Debounced search with AbortController to prevent race conditions
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults(null);
@@ -88,21 +88,32 @@ export function ProjectsTable({
       return;
     }
 
+    const abortController = new AbortController();
+
     const timeoutId = setTimeout(async () => {
       setSearching(true);
       setSearchError(null);
       try {
-        const results = await searchProjects(searchQuery, 100);
+        const results = await searchProjects(searchQuery, 100, abortController.signal);
+        if (abortController.signal.aborted) return;
         setSearchResults(results);
       } catch (err) {
+        if (abortController.signal.aborted) return;
+        // Don't show error for aborted requests
+        if (err instanceof Error && err.name === "AbortError") return;
         setSearchError(err instanceof Error ? err.message : "Search failed");
         setSearchResults(null);
       } finally {
-        setSearching(false);
+        if (!abortController.signal.aborted) {
+          setSearching(false);
+        }
       }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+    };
   }, [searchQuery]);
 
   const clearSearch = useCallback(() => {

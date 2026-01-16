@@ -119,8 +119,17 @@ export async function getProject(id: number): Promise<QueueProject> {
   return fetchAPI<QueueProject>(`/api/projects/${id}`);
 }
 
-export async function searchProjects(query: string, limit = 50): Promise<QueueProject[]> {
-  return fetchAPI<QueueProject[]>(`/api/projects/search/?q=${encodeURIComponent(query)}&limit=${limit}`);
+export async function searchProjects(
+  query: string,
+  limit = 50,
+  signal?: AbortSignal
+): Promise<QueueProject[]> {
+  const url = `${API_BASE_URL}/api/projects/search/?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 }
 
 // Map data endpoints

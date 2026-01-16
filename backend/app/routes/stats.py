@@ -240,6 +240,17 @@ def get_withdrawn_by_region(
     ]
 
 
+def format_fips(fips_value) -> str | None:
+    """Format FIPS code as 5-digit string with leading zeros"""
+    if fips_value is None:
+        return None
+    # Convert to int first (handles float like 6037.0), then format as 5-digit string
+    try:
+        return str(int(float(fips_value))).zfill(5)
+    except (ValueError, TypeError):
+        return str(fips_value).zfill(5)
+
+
 @router.get("/by-county")
 def get_stats_by_county(
     session: Session = Depends(get_session),
@@ -289,7 +300,7 @@ def get_stats_by_county(
 
     return [
         {
-            "fips": r[0],
+            "fips": format_fips(r[0]),
             "county": r[1],
             "state": r[2],
             "region": r[3],
@@ -368,7 +379,7 @@ def get_map_data(
         ],
         "by_county": [
             {
-                "fips": r[0],
+                "fips": format_fips(r[0]),
                 "county": r[1],
                 "state": r[2],
                 "project_count": r[3],

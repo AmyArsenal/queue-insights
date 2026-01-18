@@ -95,6 +95,30 @@ export async function getWithdrawnByRegion(q_year?: number): Promise<WithdrawnBy
   return fetchAPI<WithdrawnByRegion[]>(`/api/stats/withdrawn-by-region${query}`);
 }
 
+// Filter options type
+export interface FilterOptions {
+  regions: string[];
+  states: string[];
+  types: string[];
+  statuses: string[];
+  years: number[];
+}
+
+// Get filter options for dropdowns
+export async function getFilterOptions(): Promise<FilterOptions> {
+  return fetchAPI<FilterOptions>("/api/projects/filter-options");
+}
+
+// Extended filters with multi-select support
+export interface ExtendedProjectFilters extends ProjectFilters {
+  regions?: string[];  // Multi-select
+  states?: string[];   // Multi-select
+  types?: string[];    // Multi-select
+  statuses?: string[]; // Multi-select
+  years?: number[];    // Multi-select
+  q_ids?: string[];    // Multi-select
+}
+
 // Projects endpoints
 export async function getProjects(filters: ProjectFilters = {}): Promise<QueueProject[]> {
   const params = new URLSearchParams();
@@ -113,6 +137,63 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<QueuePr
   const endpoint = queryString ? `/api/projects?${queryString}` : "/api/projects";
 
   return fetchAPI<QueueProject[]>(endpoint);
+}
+
+// Get projects with extended multi-select filters
+export async function getProjectsFiltered(
+  filters: ExtendedProjectFilters = {},
+  signal?: AbortSignal
+): Promise<QueueProject[]> {
+  const params = new URLSearchParams();
+
+  // Multi-select filters (comma-separated)
+  if (filters.regions && filters.regions.length > 0) {
+    params.append("region", filters.regions.join(","));
+  } else if (filters.region) {
+    params.append("region", filters.region);
+  }
+
+  if (filters.states && filters.states.length > 0) {
+    params.append("state", filters.states.join(","));
+  } else if (filters.state) {
+    params.append("state", filters.state);
+  }
+
+  if (filters.types && filters.types.length > 0) {
+    params.append("type_clean", filters.types.join(","));
+  } else if (filters.type_clean) {
+    params.append("type_clean", filters.type_clean);
+  }
+
+  if (filters.statuses && filters.statuses.length > 0) {
+    params.append("q_status", filters.statuses.join(","));
+  } else if (filters.q_status) {
+    params.append("q_status", filters.q_status);
+  }
+
+  if (filters.years && filters.years.length > 0) {
+    params.append("q_year", filters.years.join(","));
+  } else if (filters.q_year) {
+    params.append("q_year", filters.q_year.toString());
+  }
+
+  if (filters.q_ids && filters.q_ids.length > 0) {
+    params.append("q_id", filters.q_ids.join(","));
+  }
+
+  if (filters.min_mw !== undefined) params.append("min_mw", filters.min_mw.toString());
+  if (filters.max_mw !== undefined) params.append("max_mw", filters.max_mw.toString());
+  if (filters.limit) params.append("limit", filters.limit.toString());
+  if (filters.offset) params.append("offset", filters.offset.toString());
+
+  const queryString = params.toString();
+  const url = `${API_BASE_URL}/api/projects${queryString ? `?${queryString}` : ""}`;
+
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 }
 
 export async function getProject(id: number): Promise<QueueProject> {

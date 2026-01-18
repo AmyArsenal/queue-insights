@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -26,8 +26,16 @@ import {
   Loader2,
   Filter,
   X,
+  Search,
 } from "lucide-react";
 import type { QueueProject } from "@/types";
+import {
+  getFilterOptions,
+  getProjectsFiltered,
+  searchProjects,
+  type FilterOptions,
+  type ExtendedProjectFilters,
+} from "@/lib/api";
 
 interface ProjectsTableProps {
   projects: QueueProject[];
@@ -37,12 +45,16 @@ interface ProjectsTableProps {
   onPrevPage: () => void;
   currentOffset: number;
   limit: number;
+  // Global filters from parent
+  globalFilters?: {
+    region?: string;
+    type_clean?: string;
+    q_status?: string;
+  };
 }
 
 // Column filter state type
 interface ColumnFilters {
-  q_id: Set<string>;
-  project_name: Set<string>;
   region: Set<string>;
   state: Set<string>;
   type_clean: Set<string>;
@@ -98,12 +110,14 @@ function ColumnFilter({
   values,
   selectedValues,
   onSelectionChange,
+  disabled,
 }: {
   column: FilterableColumn;
   label: string;
   values: string[];
   selectedValues: Set<string>;
   onSelectionChange: (column: FilterableColumn, values: Set<string>) => void;
+  disabled?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -143,6 +157,7 @@ function ColumnFilter({
             variant="ghost"
             size="icon"
             className={`h-6 w-6 ${hasActiveFilter ? "text-blue-500" : "text-muted-foreground"}`}
+            disabled={disabled}
           >
             <Filter className="h-3 w-3" />
           </Button>
@@ -188,7 +203,7 @@ function ColumnFilter({
               </p>
             ) : (
               <div className="space-y-1">
-                {filteredValues.slice(0, 100).map((value) => (
+                {filteredValues.map((value) => (
                   <label
                     key={value}
                     className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-sm"
@@ -200,11 +215,6 @@ function ColumnFilter({
                     <span className="truncate">{value}</span>
                   </label>
                 ))}
-                {filteredValues.length > 100 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">
-                    Showing first 100 of {filteredValues.length} values
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -227,18 +237,30 @@ function ColumnFilter({
 }
 
 export function ProjectsTable({
-  projects,
-  loading,
+  projects: initialProjects,
+  loading: initialLoading,
   error,
   onNextPage,
   onPrevPage,
   currentOffset,
   limit,
+  globalFilters,
 }: ProjectsTableProps) {
+  // Filter options from API
+  const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  // Filtered data from server
+  const [filteredProjects, setFilteredProjects] = useState<QueueProject[] | null>(null);
+  const [filterLoading, setFilterLoading] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<QueueProject[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
   // Column filter state
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>({
-    q_id: new Set(),
-    project_name: new Set(),
     region: new Set(),
     state: new Set(),
     type_clean: new Set(),
@@ -246,39 +268,119 @@ export function ProjectsTable({
     q_year: new Set(),
   });
 
-  // Get unique values for each filterable column
-  const uniqueValues = useMemo(() => {
-    const values: Record<FilterableColumn, Set<string>> = {
-      q_id: new Set(),
-      project_name: new Set(),
-      region: new Set(),
-      state: new Set(),
-      type_clean: new Set(),
-      q_status: new Set(),
-      q_year: new Set(),
-    };
+  // Load filter options on mount
+  useEffect(() => {
+    async function loadFilterOptions() {
+      try {
+        const options = await getFilterOptions();
+        setFilterOptions(options);
+      } catch (err) {
+        console.error("Failed to load filter options:", err);
+      } finally {
+        setLoadingOptions(false);
+      }
+    }
+    loadFilterOptions();
+  }, []);
 
-    projects.forEach((p) => {
-      if (p.q_id) values.q_id.add(p.q_id);
-      if (p.project_name) values.project_name.add(p.project_name);
-      else if (p.poi_name) values.project_name.add(p.poi_name);
-      if (p.region) values.region.add(p.region);
-      if (p.state) values.state.add(p.state);
-      if (p.type_clean) values.type_clean.add(p.type_clean);
-      if (p.q_status) values.q_status.add(p.q_status);
-      if (p.q_year) values.q_year.add(String(p.q_year));
-    });
+  // Debounced search
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults(null);
+      return;
+    }
 
-    return {
-      q_id: Array.from(values.q_id).sort(),
-      project_name: Array.from(values.project_name).sort(),
-      region: Array.from(values.region).sort(),
-      state: Array.from(values.state).sort(),
-      type_clean: Array.from(values.type_clean).sort(),
-      q_status: Array.from(values.q_status).sort(),
-      q_year: Array.from(values.q_year).sort((a, b) => Number(b) - Number(a)),
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchProjects(searchQuery, 100, abortController.signal);
+        if (!abortController.signal.aborted) {
+          setSearchResults(results);
+        }
+      } catch (err) {
+        if (!abortController.signal.aborted && !(err instanceof Error && err.name === "AbortError")) {
+          console.error("Search failed:", err);
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setSearching(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
     };
-  }, [projects]);
+  }, [searchQuery]);
+
+  // Fetch filtered data when column filters change
+  useEffect(() => {
+    const hasFilters =
+      columnFilters.region.size > 0 ||
+      columnFilters.state.size > 0 ||
+      columnFilters.type_clean.size > 0 ||
+      columnFilters.q_status.size > 0 ||
+      columnFilters.q_year.size > 0;
+
+    if (!hasFilters) {
+      setFilteredProjects(null);
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    async function fetchFiltered() {
+      setFilterLoading(true);
+      try {
+        const filters: ExtendedProjectFilters = {
+          limit: 500, // Get more results when filtering
+        };
+
+        // Apply global filters first
+        if (globalFilters?.region) filters.region = globalFilters.region;
+        if (globalFilters?.type_clean) filters.type_clean = globalFilters.type_clean;
+        if (globalFilters?.q_status) filters.q_status = globalFilters.q_status;
+
+        // Then apply column filters (multi-select)
+        if (columnFilters.region.size > 0) {
+          filters.regions = Array.from(columnFilters.region);
+        }
+        if (columnFilters.state.size > 0) {
+          filters.states = Array.from(columnFilters.state);
+        }
+        if (columnFilters.type_clean.size > 0) {
+          filters.types = Array.from(columnFilters.type_clean);
+        }
+        if (columnFilters.q_status.size > 0) {
+          filters.statuses = Array.from(columnFilters.q_status);
+        }
+        if (columnFilters.q_year.size > 0) {
+          filters.years = Array.from(columnFilters.q_year).map((y) => parseInt(y));
+        }
+
+        const results = await getProjectsFiltered(filters, abortController.signal);
+        if (!abortController.signal.aborted) {
+          setFilteredProjects(results);
+        }
+      } catch (err) {
+        if (!abortController.signal.aborted && !(err instanceof Error && err.name === "AbortError")) {
+          console.error("Filter failed:", err);
+        }
+      } finally {
+        if (!abortController.signal.aborted) {
+          setFilterLoading(false);
+        }
+      }
+    }
+
+    fetchFiltered();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [columnFilters, globalFilters]);
 
   // Handle filter changes
   const handleFilterChange = useCallback(
@@ -294,14 +396,14 @@ export function ProjectsTable({
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     setColumnFilters({
-      q_id: new Set(),
-      project_name: new Set(),
       region: new Set(),
       state: new Set(),
       type_clean: new Set(),
       q_status: new Set(),
       q_year: new Set(),
     });
+    setSearchQuery("");
+    setSearchResults(null);
   }, []);
 
   // Check if any filters are active
@@ -309,68 +411,19 @@ export function ProjectsTable({
     return Object.values(columnFilters).some((set) => set.size > 0);
   }, [columnFilters]);
 
-  // Filter projects based on column filters
-  const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
-      // Queue ID filter
-      if (
-        columnFilters.q_id.size > 0 &&
-        (!project.q_id || !columnFilters.q_id.has(project.q_id))
-      ) {
-        return false;
-      }
+  // Determine which projects to display
+  const displayProjects = useMemo(() => {
+    if (searchQuery.length >= 2 && searchResults !== null) {
+      return searchResults;
+    }
+    if (hasActiveFilters && filteredProjects !== null) {
+      return filteredProjects;
+    }
+    return initialProjects;
+  }, [searchQuery, searchResults, hasActiveFilters, filteredProjects, initialProjects]);
 
-      // Project Name filter
-      if (columnFilters.project_name.size > 0) {
-        const name = project.project_name || project.poi_name;
-        if (!name || !columnFilters.project_name.has(name)) {
-          return false;
-        }
-      }
-
-      // Region filter
-      if (
-        columnFilters.region.size > 0 &&
-        (!project.region || !columnFilters.region.has(project.region))
-      ) {
-        return false;
-      }
-
-      // State filter
-      if (
-        columnFilters.state.size > 0 &&
-        (!project.state || !columnFilters.state.has(project.state))
-      ) {
-        return false;
-      }
-
-      // Type filter
-      if (
-        columnFilters.type_clean.size > 0 &&
-        (!project.type_clean || !columnFilters.type_clean.has(project.type_clean))
-      ) {
-        return false;
-      }
-
-      // Status filter
-      if (
-        columnFilters.q_status.size > 0 &&
-        (!project.q_status || !columnFilters.q_status.has(project.q_status))
-      ) {
-        return false;
-      }
-
-      // Year filter
-      if (
-        columnFilters.q_year.size > 0 &&
-        (!project.q_year || !columnFilters.q_year.has(String(project.q_year)))
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [projects, columnFilters]);
+  const isLoading = initialLoading || filterLoading || searching || loadingOptions;
+  const isSearchMode = searchQuery.length >= 2;
 
   if (error) {
     return (
@@ -385,11 +438,44 @@ export function ProjectsTable({
 
   return (
     <Card className="overflow-hidden">
+      {/* Search Bar */}
+      <div className="border-b p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by Queue ID, project name, POI, developer..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+              onClick={() => {
+                setSearchQuery("");
+                setSearchResults(null);
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        {isSearchMode && !searching && searchResults !== null && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Found {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &quot;{searchQuery}&quot;
+          </p>
+        )}
+      </div>
+
       {/* Active filters indicator */}
-      {hasActiveFilters && (
+      {hasActiveFilters && !isSearchMode && (
         <div className="flex items-center justify-between border-b px-4 py-2 bg-blue-500/5">
           <p className="text-sm text-blue-600">
-            Showing {filteredProjects.length} of {projects.length} projects
+            {filterLoading
+              ? "Filtering..."
+              : `Found ${filteredProjects?.length ?? 0} projects matching filters`}
           </p>
           <Button
             variant="ghost"
@@ -408,49 +494,36 @@ export function ProjectsTable({
           <TableHeader>
             {/* Column headers with filter icons */}
             <TableRow>
-              <TableHead className="w-[120px]">
-                <ColumnFilter
-                  column="q_id"
-                  label="Queue ID"
-                  values={uniqueValues.q_id}
-                  selectedValues={columnFilters.q_id}
-                  onSelectionChange={handleFilterChange}
-                />
-              </TableHead>
-              <TableHead>
-                <ColumnFilter
-                  column="project_name"
-                  label="Project Name"
-                  values={uniqueValues.project_name}
-                  selectedValues={columnFilters.project_name}
-                  onSelectionChange={handleFilterChange}
-                />
-              </TableHead>
+              <TableHead className="w-[120px]">Queue ID</TableHead>
+              <TableHead>Project Name</TableHead>
               <TableHead>
                 <ColumnFilter
                   column="region"
                   label="Region"
-                  values={uniqueValues.region}
+                  values={filterOptions?.regions ?? []}
                   selectedValues={columnFilters.region}
                   onSelectionChange={handleFilterChange}
+                  disabled={loadingOptions}
                 />
               </TableHead>
               <TableHead>
                 <ColumnFilter
                   column="state"
                   label="State"
-                  values={uniqueValues.state}
+                  values={filterOptions?.states ?? []}
                   selectedValues={columnFilters.state}
                   onSelectionChange={handleFilterChange}
+                  disabled={loadingOptions}
                 />
               </TableHead>
               <TableHead>
                 <ColumnFilter
                   column="type_clean"
                   label="Type"
-                  values={uniqueValues.type_clean}
+                  values={filterOptions?.types ?? []}
                   selectedValues={columnFilters.type_clean}
                   onSelectionChange={handleFilterChange}
+                  disabled={loadingOptions}
                 />
               </TableHead>
               <TableHead className="text-right">Capacity</TableHead>
@@ -458,42 +531,50 @@ export function ProjectsTable({
                 <ColumnFilter
                   column="q_status"
                   label="Status"
-                  values={uniqueValues.q_status}
+                  values={filterOptions?.statuses ?? []}
                   selectedValues={columnFilters.q_status}
                   onSelectionChange={handleFilterChange}
+                  disabled={loadingOptions}
                 />
               </TableHead>
               <TableHead>
                 <ColumnFilter
                   column="q_year"
                   label="Year"
-                  values={uniqueValues.q_year}
+                  values={filterOptions?.years.map(String) ?? []}
                   selectedValues={columnFilters.q_year}
                   onSelectionChange={handleFilterChange}
+                  disabled={loadingOptions}
                 />
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Loading projects...
+                    {searching
+                      ? "Searching..."
+                      : filterLoading
+                      ? "Applying filters..."
+                      : "Loading..."}
                   </p>
                 </TableCell>
               </TableRow>
-            ) : filteredProjects.length === 0 ? (
+            ) : displayProjects.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  {hasActiveFilters
+                  {isSearchMode
+                    ? `No projects found matching "${searchQuery}"`
+                    : hasActiveFilters
                     ? "No projects match the selected filters."
                     : "No projects found."}
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProjects.map((project) => (
+              displayProjects.map((project) => (
                 <TableRow key={project.id} className="hover:bg-muted/50">
                   <TableCell className="font-mono text-xs">
                     {project.q_id || "-"}
@@ -526,34 +607,43 @@ export function ProjectsTable({
         </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between border-t px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          {hasActiveFilters
-            ? `Showing ${filteredProjects.length} filtered results`
-            : `Showing ${currentOffset + 1} - ${currentOffset + projects.length} results`}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPrevPage}
-            disabled={currentOffset === 0 || loading}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onNextPage}
-            disabled={projects.length < limit || loading}
-          >
-            Next
-            <ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
+      {/* Pagination - hide when filtering or searching */}
+      {!hasActiveFilters && !isSearchMode && (
+        <div className="flex items-center justify-between border-t px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {currentOffset + 1} - {currentOffset + initialProjects.length} results
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPrevPage}
+              disabled={currentOffset === 0 || initialLoading}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNextPage}
+              disabled={initialProjects.length < limit || initialLoading}
+            >
+              Next
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Show count when filtering */}
+      {(hasActiveFilters || isSearchMode) && !isLoading && (
+        <div className="flex items-center justify-between border-t px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {displayProjects.length} results
+          </p>
+        </div>
+      )}
     </Card>
   );
 }

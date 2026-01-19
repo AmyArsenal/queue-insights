@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, TrendingUp, AlertTriangle, DollarSign, Zap } from "lucide-react";
+import { Search, TrendingUp, DollarSign, Zap } from "lucide-react";
 import Link from "next/link";
 import {
   getClusterSummary,
@@ -31,16 +31,16 @@ import {
   type ClusterFilterOptions,
 } from "@/lib/api";
 
-function formatCurrency(value: number | null): string {
-  if (value === null) return "—";
+function formatCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
   if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value.toFixed(0)}`;
 }
 
-function formatMW(value: number | null): string {
-  if (value === null) return "—";
+function formatMW(value: number | null | undefined): string {
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
   return `${value.toFixed(0)} MW`;
 }
 
@@ -386,7 +386,7 @@ export default function ClusterPage() {
                       {formatCurrency(project.total_cost)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {project.cost_per_kw
+                      {typeof project.cost_per_kw === 'number' && !isNaN(project.cost_per_kw)
                         ? `$${project.cost_per_kw.toFixed(0)}`
                         : "—"}
                     </TableCell>

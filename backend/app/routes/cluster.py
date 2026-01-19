@@ -22,6 +22,10 @@ from app.models.cluster import (
 
 router = APIRouter(prefix="/api/cluster", tags=["cluster"])
 
+# Allowlists for sort fields to prevent arbitrary attribute access
+ALLOWED_PROJECT_SORT_FIELDS = {"cost_rank", "risk_score_overall", "mw_capacity", "total_cost", "cost_per_kw", "project_id"}
+ALLOWED_UPGRADE_SORT_FIELDS = {"total_cost", "shared_by_count", "rtep_id", "utility"}
+
 
 # ============================================================================
 # CLUSTER OVERVIEW
@@ -177,8 +181,10 @@ def list_projects(
     if max_risk is not None:
         query = query.where(PJMProjectCost.risk_score_overall <= max_risk)
 
-    # Apply sorting
-    sort_field = getattr(PJMProjectCost, sort_by, PJMProjectCost.cost_rank)
+    # Apply sorting (validate sort_by against allowlist)
+    if sort_by not in ALLOWED_PROJECT_SORT_FIELDS:
+        sort_by = "cost_rank"
+    sort_field = getattr(PJMProjectCost, sort_by)
     if sort_order == "desc":
         query = query.order_by(sort_field.desc())
     else:
@@ -447,7 +453,10 @@ def list_upgrades(
     if min_cost:
         query = query.where(PJMUpgrade.total_cost >= min_cost)
 
-    sort_field = getattr(PJMUpgrade, sort_by, PJMUpgrade.total_cost)
+    # Validate sort_by against allowlist
+    if sort_by not in ALLOWED_UPGRADE_SORT_FIELDS:
+        sort_by = "total_cost"
+    sort_field = getattr(PJMUpgrade, sort_by)
     query = query.order_by(sort_field.desc()).limit(limit)
 
     upgrades = session.exec(query).all()

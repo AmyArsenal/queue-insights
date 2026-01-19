@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/layout/header";
@@ -15,17 +15,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Queue Insights | US Grid Interconnection Queue Tracker",
+  title: "GridAgent | AI Intelligence Layer for Grid Data",
   description:
-    "The best interconnection queue tracker for the US grid. Explore 36,000+ projects and 2,290 GW of capacity seeking grid connection.",
+    "The first AI layer for grid interconnection. Queues, clusters, tariffs, cost allocations. Ask anything, get answers in seconds.",
   keywords: [
     "interconnection queue",
+    "grid intelligence",
+    "AI agent",
+    "PJM cluster study",
     "renewable energy",
     "solar",
     "wind",
     "battery storage",
-    "grid connection",
     "CAISO",
     "ERCOT",
     "PJM",
@@ -41,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${sourceSerif.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"

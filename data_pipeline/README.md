@@ -11,7 +11,8 @@ This pipeline extracts cost allocation data from PJM individual project SIS (Sys
 ```
 data_pipeline/
 ├── config.py              # Configuration (paths, delays, weights)
-├── run_scraper.py         # Main entry point
+├── run_scraper.py         # Main entry point for scraping
+├── load_to_db.py          # Load scraped data to PostgreSQL
 ├── test_scraper.py        # Quick scraper test
 ├── scrapers/
 │   ├── __init__.py
@@ -22,11 +23,36 @@ data_pipeline/
 └── README.md
 ```
 
+## Prerequisites
+
+- Python 3.10+
+- PostgreSQL 12+ (we use Supabase)
+- PJM cluster study access
+
+## Database Setup
+
+1. **Create a PostgreSQL database** (or use Supabase):
+   ```bash
+   createdb gridagent
+   ```
+
+2. **Set environment variables** in `.env`:
+   ```env
+   DATABASE_URL=postgresql://user:password@localhost:5432/gridagent
+   ```
+
+3. **Run migrations**:
+   ```bash
+   psql -d gridagent -f migrations/001_cluster_tables.sql
+   ```
+
+   Or for Supabase, run the SQL in the Supabase SQL editor.
+
 ## Quick Start
 
 ```bash
 # 1. Install dependencies
-pip install pandas requests beautifulsoup4 lxml openpyxl python-dotenv
+pip install pandas requests beautifulsoup4 lxml openpyxl python-dotenv psycopg2-binary
 
 # 2. Test scraper on single project
 cd data_pipeline
@@ -103,14 +129,16 @@ Composite risk score (0-100) with four components:
 |-----------|--------|------------------|
 | Cost | 35% | $/kW percentile in cluster |
 | Concentration | 25% | % of cost from single largest upgrade |
-| Dependency | 25% | Risk of co-dependent projects |
-| Timeline | 15% | Tagged-but-no-cost upgrades (interim deliverability) |
+| Dependency | 25% | Number of co-dependent projects |
+| Overloads | 15% | Total number of upgrades tagged |
+
+Risk scores are calculated in `load_to_db.py` after data is loaded.
 
 ## MVP Scope
 
 - **Cluster**: TC2 only
 - **Phase**: Phase 1 only
-- **Projects**: ~648
+- **Projects**: ~452 loaded
 
 ## Future Expansion
 

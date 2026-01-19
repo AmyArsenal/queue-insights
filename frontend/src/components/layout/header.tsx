@@ -2,47 +2,89 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Zap, Menu } from "lucide-react";
+import { Moon, Sun, Zap, Menu, ChevronDown } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+
+const agents = [
+  { name: "PJM Agent", href: "/cluster", status: "Live" },
+  { name: "MISO Agent", href: "#", status: "Coming Q2" },
+  { name: "ERCOT Agent", href: "#", status: "Coming Q3" },
+  { name: "CAISO Agent", href: "#", status: "Coming Q3" },
+];
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-
-  const navigation = [
-    { name: "Explorer", href: "/explorer" },
-    { name: "PJM Cluster", href: "/cluster" },
-    { name: "AI Agent", href: "/agent" },
-    { name: "About", href: "/about" },
-  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-teal-400">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 via-purple-500 to-teal-400">
             <Zap className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl font-semibold tracking-tight">
-            Queue Insights
+            GridAgent
           </span>
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              prefetch={true}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {item.name}
-            </Link>
-          ))}
+          {/* Agents Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+              Agents
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {agents.map((agent) => (
+                <DropdownMenuItem key={agent.name} asChild disabled={agent.status !== "Live"}>
+                  <Link href={agent.href} className="flex items-center justify-between w-full">
+                    <span>{agent.name}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      agent.status === "Live"
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {agent.status}
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/explorer" className="w-full">
+                  Data Explorer
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Link
+            href="/explorer"
+            prefetch={true}
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Explorer
+          </Link>
+
+          <Link
+            href="/about"
+            prefetch={true}
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            About
+          </Link>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -54,6 +96,10 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
+          <Button size="sm" className="hidden md:flex">
+            Join Waitlist
+          </Button>
+
           {/* Mobile Menu */}
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
@@ -63,16 +109,43 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px]">
               <nav className="flex flex-col gap-4 pt-8">
-                {navigation.map((item) => (
+                <div className="text-sm font-medium text-muted-foreground mb-2">Agents</div>
+                {agents.map((agent) => (
                   <Link
-                    key={item.name}
-                    href={item.href}
+                    key={agent.name}
+                    href={agent.href}
                     prefetch={true}
-                    className="text-lg font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="flex items-center justify-between text-base font-medium text-muted-foreground transition-colors hover:text-foreground pl-4"
                   >
-                    {item.name}
+                    <span>{agent.name}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      agent.status === "Live"
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {agent.status}
+                    </span>
                   </Link>
                 ))}
+                <div className="h-px bg-border my-2" />
+                <Link
+                  href="/explorer"
+                  prefetch={true}
+                  className="text-lg font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Explorer
+                </Link>
+                <Link
+                  href="/about"
+                  prefetch={true}
+                  className="text-lg font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  About
+                </Link>
+                <div className="h-px bg-border my-2" />
+                <Button className="w-full">
+                  Join Waitlist
+                </Button>
               </nav>
             </SheetContent>
           </Sheet>

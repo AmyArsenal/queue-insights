@@ -26,29 +26,38 @@ import {
 import Link from "next/link";
 import { getClusterProjectDashboard, type ProjectDashboard } from "@/lib/api";
 
-function formatCurrency(value: number | null): string {
-  if (value === null) return "—";
+function safeNumber(value: unknown): number {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function formatCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
   if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value.toFixed(0)}`;
 }
 
-function formatMW(value: number | null): string {
-  if (value === null) return "—";
+function formatMW(value: number | null | undefined): string {
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
   return `${value.toFixed(0)} MW`;
 }
 
-function getRiskColor(score: number | null): string {
-  if (score === null) return "bg-gray-300";
+function getRiskColor(score: number | null | undefined): string {
+  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "bg-gray-300";
   if (score < 25) return "bg-green-500";
   if (score < 50) return "bg-yellow-500";
   if (score < 75) return "bg-orange-500";
   return "bg-red-500";
 }
 
-function getRiskLabel(score: number | null): string {
-  if (score === null) return "Unknown";
+function getRiskLabel(score: number | null | undefined): string {
+  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "Unknown";
   if (score < 25) return "Low";
   if (score < 50) return "Medium";
   if (score < 75) return "High";
@@ -56,12 +65,12 @@ function getRiskLabel(score: number | null): string {
 }
 
 function RiskMeter({ score, label }: { score: number | null; label: string }) {
-  const displayScore = score ?? 0;
+  const displayScore = safeNumber(score);
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{score?.toFixed(0) ?? "—"}</span>
+        <span className="font-medium">{typeof score === 'number' && !isNaN(score) ? score.toFixed(0) : "—"}</span>
       </div>
       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
@@ -218,7 +227,7 @@ export default function ProjectDashboardPage({
                 <AlertTriangle className="h-4 w-4" /> Risk Score
               </CardTitle>
               <CardDescription>
-                Overall: {project.risk_score_overall?.toFixed(1) ?? "—"}/100
+                Overall: {typeof project.risk_score_overall === 'number' && !isNaN(project.risk_score_overall) ? project.risk_score_overall.toFixed(1) : "—"}/100
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -276,7 +285,7 @@ export default function ProjectDashboardPage({
                 <div className="text-sm text-muted-foreground">
                   Total Allocated Cost
                 </div>
-                {project.cost_per_kw && (
+                {typeof project.cost_per_kw === 'number' && !isNaN(project.cost_per_kw) && (
                   <div className="text-lg mt-1">
                     ${project.cost_per_kw.toFixed(0)}/kW
                   </div>
@@ -335,18 +344,22 @@ export default function ProjectDashboardPage({
                     <div
                       className="h-full bg-blue-500 transition-all"
                       style={{
-                        width: `${project.cost_percentile ?? 0}%`,
+                        width: `${safeNumber(project.cost_percentile)}%`,
                       }}
                     />
                   </div>
                 </div>
                 <div className="text-sm font-medium w-20 text-right">
-                  {project.cost_percentile?.toFixed(0)}th percentile
+                  {typeof project.cost_percentile === 'number' && !isNaN(project.cost_percentile)
+                    ? `${project.cost_percentile.toFixed(0)}th percentile`
+                    : "—"}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Lower cost than {(100 - (project.cost_percentile ?? 0)).toFixed(0)}% of projects
-              </p>
+              {typeof project.cost_percentile === 'number' && !isNaN(project.cost_percentile) && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Lower cost than {(100 - project.cost_percentile).toFixed(0)}% of projects
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -387,7 +400,7 @@ export default function ProjectDashboardPage({
                               {formatCurrency(upgrade.allocated_cost)}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {upgrade.percent_allocation
+                              {typeof upgrade.percent_allocation === 'number' && !isNaN(upgrade.percent_allocation)
                                 ? `${(upgrade.percent_allocation * 100).toFixed(1)}%`
                                 : "—"}
                             </div>

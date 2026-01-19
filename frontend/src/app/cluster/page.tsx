@@ -44,20 +44,29 @@ function formatMW(value: number | null | undefined): string {
   return `${value.toFixed(0)} MW`;
 }
 
-function getRiskColor(score: number | null): string {
-  if (score === null) return "bg-gray-200";
+function getRiskColor(score: number | null | undefined): string {
+  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "bg-gray-200";
   if (score < 25) return "bg-green-500";
   if (score < 50) return "bg-yellow-500";
   if (score < 75) return "bg-orange-500";
   return "bg-red-500";
 }
 
-function getRiskLabel(score: number | null): string {
-  if (score === null) return "Unknown";
+function getRiskLabel(score: number | null | undefined): string {
+  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "Unknown";
   if (score < 25) return "Low";
   if (score < 50) return "Medium";
   if (score < 75) return "High";
   return "Critical";
+}
+
+function safeNumber(value: unknown): number {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 0;
 }
 
 export default function ClusterPage() {
@@ -224,7 +233,9 @@ export default function ClusterPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {summary.avg_risk_score?.toFixed(1) || "—"}
+                {typeof summary.avg_risk_score === 'number' && !isNaN(summary.avg_risk_score)
+                  ? summary.avg_risk_score.toFixed(1)
+                  : "—"}
               </div>
               <p className="text-xs text-muted-foreground">
                 out of 100
@@ -241,8 +252,9 @@ export default function ClusterPage() {
             <CardContent>
               <div className="flex gap-1 h-6">
                 {["low", "medium", "high", "critical"].map((level) => {
-                  const count = summary.risk_distribution?.[level] || 0;
-                  const percent = summary.total_projects > 0 ? (count / summary.total_projects) * 100 : 0;
+                  const count = safeNumber(summary.risk_distribution?.[level]);
+                  const totalProjects = safeNumber(summary.total_projects);
+                  const percent = totalProjects > 0 ? (count / totalProjects) * 100 : 0;
                   const colors: Record<string, string> = {
                     low: "bg-green-500",
                     medium: "bg-yellow-500",
@@ -260,8 +272,8 @@ export default function ClusterPage() {
                 })}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Low: {summary.risk_distribution?.low || 0}</span>
-                <span>High: {(summary.risk_distribution?.high || 0) + (summary.risk_distribution?.critical || 0)}</span>
+                <span>Low: {safeNumber(summary.risk_distribution?.low)}</span>
+                <span>High: {safeNumber(summary.risk_distribution?.high) + safeNumber(summary.risk_distribution?.critical)}</span>
               </div>
             </CardContent>
           </Card>

@@ -225,7 +225,14 @@ export default function Home() {
                 </div>
               )}
 
-              <form className="space-y-4">
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // TODO: Implement waitlist API submission
+                  console.log("Waitlist signup:", email, query);
+                }}
+              >
                 <Input
                   type="email"
                   placeholder="Enter your email"
@@ -457,9 +464,18 @@ export default function Home() {
             <Input
               type="email"
               placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
             />
-            <Button size="lg" variant="secondary" className="whitespace-nowrap">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="whitespace-nowrap"
+              onClick={() => {
+                if (email) setShowWaitlist(true);
+              }}
+            >
               Join Waitlist
             </Button>
           </div>

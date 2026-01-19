@@ -11,7 +11,7 @@ export function Header() {
 
   const navigation = [
     { name: "Explorer", href: "/explorer" },
-    { name: "Analytics", href: "/analytics" },
+    { name: "PJM Cluster", href: "/cluster" },
     { name: "AI Agent", href: "/agent" },
     { name: "About", href: "/about" },
   ];

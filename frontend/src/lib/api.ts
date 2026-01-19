@@ -237,3 +237,189 @@ export async function getMapData(params?: {
   const query = searchParams.toString();
   return fetchAPI<MapDataResponse>(`/api/stats/map-data${query ? `?${query}` : ""}`);
 }
+
+// ============================================================================
+// PJM CLUSTER STUDY API
+// ============================================================================
+
+export interface ClusterInfo {
+  id: number;
+  cluster_name: string;
+  phase: string;
+  total_projects: number;
+  total_mw: number | null;
+}
+
+export interface ClusterSummary {
+  cluster_name: string;
+  phase: string;
+  total_projects: number;
+  total_mw: number | null;
+  total_cost: number | null;
+  avg_cost_per_kw: number | null;
+  avg_risk_score: number | null;
+  risk_distribution: Record<string, number>;
+  cost_distribution: Record<string, number>;
+}
+
+export interface ClusterProject {
+  project_id: string;
+  developer: string | null;
+  utility: string | null;
+  state: string | null;
+  fuel_type: string | null;
+  mw_capacity: number | null;
+  total_cost: number | null;
+  cost_per_kw: number | null;
+  risk_score_overall: number | null;
+  cost_rank: number | null;
+}
+
+export interface ProjectUpgrade {
+  id: number;
+  project_id: string;
+  link_type: string;
+  allocated_cost: number | null;
+  percent_allocation: number | null;
+  upgrade_rtep_id: string | null;
+  upgrade_title: string | null;
+  upgrade_utility: string | null;
+  upgrade_total_cost: number | null;
+  shared_by_count: number | null;
+}
+
+export interface ProjectDashboard {
+  project_id: string;
+  cluster_name: string;
+  phase: string;
+  developer: string | null;
+  utility: string | null;
+  state: string | null;
+  county: string | null;
+  fuel_type: string | null;
+  mw_capacity: number | null;
+  project_status: string | null;
+  total_cost: number | null;
+  cost_per_kw: number | null;
+  toif_cost: number | null;
+  network_upgrade_cost: number | null;
+  system_reliability_cost: number | null;
+  rd1_amount: number | null;
+  rd2_amount: number | null;
+  risk_score_overall: number | null;
+  risk_score_cost: number | null;
+  risk_score_concentration: number | null;
+  risk_score_dependency: number | null;
+  risk_score_timeline: number | null;
+  cost_rank: number | null;
+  cost_percentile: number | null;
+  cluster_total_projects: number | null;
+  report_url: string | null;
+  upgrades: ProjectUpgrade[];
+  codependent_projects: string[];
+}
+
+export interface ClusterFilterOptions {
+  utilities: string[];
+  states: string[];
+  fuel_types: string[];
+}
+
+// Get list of clusters
+export async function getClusters(): Promise<ClusterInfo[]> {
+  return fetchAPI<ClusterInfo[]>("/api/cluster/clusters");
+}
+
+// Get cluster summary
+export async function getClusterSummary(
+  cluster: string,
+  phase: string
+): Promise<ClusterSummary> {
+  return fetchAPI<ClusterSummary>(`/api/cluster/summary/${cluster}/${phase}`);
+}
+
+// Get cluster projects with filters
+export async function getClusterProjects(params: {
+  cluster?: string;
+  phase?: string;
+  utility?: string;
+  state?: string;
+  fuel_type?: string;
+  min_mw?: number;
+  max_mw?: number;
+  min_risk?: number;
+  max_risk?: number;
+  sort_by?: string;
+  sort_order?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ClusterProject[]> {
+  const searchParams = new URLSearchParams();
+  if (params.cluster) searchParams.append("cluster", params.cluster);
+  if (params.phase) searchParams.append("phase", params.phase);
+  if (params.utility) searchParams.append("utility", params.utility);
+  if (params.state) searchParams.append("state", params.state);
+  if (params.fuel_type) searchParams.append("fuel_type", params.fuel_type);
+  if (params.min_mw !== undefined) searchParams.append("min_mw", params.min_mw.toString());
+  if (params.max_mw !== undefined) searchParams.append("max_mw", params.max_mw.toString());
+  if (params.min_risk !== undefined) searchParams.append("min_risk", params.min_risk.toString());
+  if (params.max_risk !== undefined) searchParams.append("max_risk", params.max_risk.toString());
+  if (params.sort_by) searchParams.append("sort_by", params.sort_by);
+  if (params.sort_order) searchParams.append("sort_order", params.sort_order);
+  if (params.limit) searchParams.append("limit", params.limit.toString());
+  if (params.offset) searchParams.append("offset", params.offset.toString());
+  const query = searchParams.toString();
+  return fetchAPI<ClusterProject[]>(`/api/cluster/projects${query ? `?${query}` : ""}`);
+}
+
+// Search cluster projects
+export async function searchClusterProjects(
+  q: string,
+  cluster = "TC2",
+  phase = "PHASE_1",
+  limit = 20
+): Promise<{ project_id: string; developer: string | null; utility: string | null; mw_capacity: number | null; total_cost: number | null }[]> {
+  return fetchAPI(`/api/cluster/projects/search?q=${encodeURIComponent(q)}&cluster=${cluster}&phase=${phase}&limit=${limit}`);
+}
+
+// Get cluster filter options
+export async function getClusterFilterOptions(
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<ClusterFilterOptions> {
+  return fetchAPI<ClusterFilterOptions>(`/api/cluster/projects/filter-options?cluster=${cluster}&phase=${phase}`);
+}
+
+// Get project dashboard
+export async function getClusterProjectDashboard(
+  projectId: string,
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<ProjectDashboard> {
+  return fetchAPI<ProjectDashboard>(`/api/cluster/projects/${projectId}?cluster=${cluster}&phase=${phase}`);
+}
+
+// Get top upgrades
+export async function getTopUpgrades(
+  cluster = "TC2",
+  phase = "PHASE_1",
+  limit = 10
+): Promise<{ rtep_id: string; title: string | null; utility: string | null; total_cost: number; shared_by_count: number | null }[]> {
+  return fetchAPI(`/api/cluster/analytics/top-upgrades?cluster=${cluster}&phase=${phase}&limit=${limit}`);
+}
+
+// Get cost distribution
+export async function getCostDistribution(
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<{ bins: string[]; counts: number[]; total_projects: number }> {
+  return fetchAPI(`/api/cluster/analytics/cost-distribution?cluster=${cluster}&phase=${phase}`);
+}
+
+// Get risk breakdown
+export async function getRiskBreakdown(
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<{ cost: number; concentration: number; dependency: number; timeline: number; overall: number }> {
+  return fetchAPI(`/api/cluster/analytics/risk-breakdown?cluster=${cluster}&phase=${phase}`);
+}

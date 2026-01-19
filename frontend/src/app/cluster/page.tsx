@@ -284,12 +284,12 @@ export default function ClusterPage() {
             </div>
 
             {/* Filters */}
-            <Select value={utilityFilter} onValueChange={setUtilityFilter}>
+            <Select value={utilityFilter || "all"} onValueChange={(v) => setUtilityFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Utilities" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Utilities</SelectItem>
+                <SelectItem value="all">All Utilities</SelectItem>
                 {filterOptions?.utilities.map((u) => (
                   <SelectItem key={u} value={u}>
                     {u}
@@ -298,12 +298,12 @@ export default function ClusterPage() {
               </SelectContent>
             </Select>
 
-            <Select value={stateFilter} onValueChange={setStateFilter}>
+            <Select value={stateFilter || "all"} onValueChange={(v) => setStateFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All States" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All States</SelectItem>
+                <SelectItem value="all">All States</SelectItem>
                 {filterOptions?.states.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}

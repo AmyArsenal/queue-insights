@@ -241,8 +241,8 @@ export default function ClusterPage() {
             <CardContent>
               <div className="flex gap-1 h-6">
                 {["low", "medium", "high", "critical"].map((level) => {
-                  const count = summary.risk_distribution[level] || 0;
-                  const percent = (count / summary.total_projects) * 100;
+                  const count = summary.risk_distribution?.[level] || 0;
+                  const percent = summary.total_projects > 0 ? (count / summary.total_projects) * 100 : 0;
                   const colors: Record<string, string> = {
                     low: "bg-green-500",
                     medium: "bg-yellow-500",
@@ -260,8 +260,8 @@ export default function ClusterPage() {
                 })}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Low: {summary.risk_distribution.low || 0}</span>
-                <span>High: {(summary.risk_distribution.high || 0) + (summary.risk_distribution.critical || 0)}</span>
+                <span>Low: {summary.risk_distribution?.low || 0}</span>
+                <span>High: {(summary.risk_distribution?.high || 0) + (summary.risk_distribution?.critical || 0)}</span>
               </div>
             </CardContent>
           </Card>

@@ -258,8 +258,8 @@ export interface ClusterSummary {
   total_cost: number | null;
   avg_cost_per_kw: number | null;
   avg_risk_score: number | null;
-  risk_distribution: Record<string, number>;
-  cost_distribution: Record<string, number>;
+  risk_distribution: Record<string, number> | null;
+  cost_distribution: Record<string, number> | null;
 }
 
 export interface ClusterProject {

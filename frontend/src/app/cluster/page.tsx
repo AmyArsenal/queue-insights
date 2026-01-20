@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -19,13 +20,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, TrendingUp, DollarSign, Zap } from "lucide-react";
+import { Search, TrendingUp, DollarSign, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+} from "recharts";
 import {
   getClusterSummary,
   getClusterProjects,
   getClusterFilterOptions,
   searchClusterProjects,
+  getCostDistribution,
+  getRiskBreakdown,
+  getClusterStatsByFuelType,
+  getClusterStatsByUtility,
   type ClusterSummary,
   type ClusterProject,
   type ClusterFilterOptions,
@@ -33,8 +56,8 @@ import {
 
 function safeNumber(value: unknown): number | null {
   if (value === null || value === undefined) return null;
-  if (typeof value === 'number' && !isNaN(value)) return value;
-  if (typeof value === 'string') {
+  if (typeof value === "number" && !isNaN(value)) return value;
+  if (typeof value === "string") {
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) return parsed;
   }
@@ -79,6 +102,19 @@ function safeNumberOrZero(value: unknown): number {
   return num === null ? 0 : num;
 }
 
+// Color palette for charts
+const FUEL_COLORS: Record<string, string> = {
+  Solar: "#FBBF24",
+  Wind: "#14B8A6",
+  Storage: "#8B5CF6",
+  "Solar + Storage": "#F97316",
+  Hybrid: "#EC4899",
+  Gas: "#6B7280",
+  Other: "#94A3B8",
+};
+
+const CHART_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#6366F1"];
+
 export default function ClusterPage() {
   const [summary, setSummary] = useState<ClusterSummary | null>(null);
   const [projects, setProjects] = useState<ClusterProject[]>([]);
@@ -88,31 +124,53 @@ export default function ClusterPage() {
   const [searchResults, setSearchResults] = useState<ClusterProject[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Cluster selection (for future multi-cluster support)
+  const [selectedISO, setSelectedISO] = useState("PJM");
+  const [selectedCluster, setSelectedCluster] = useState("TC2");
+  const [selectedPhase, setSelectedPhase] = useState("PHASE_1");
+
+  // Chart data
+  const [costDistribution, setCostDistribution] = useState<{ bins: string[]; counts: number[] } | null>(null);
+  const [riskBreakdown, setRiskBreakdown] = useState<{ cost: number; concentration: number; dependency: number; timeline: number; overall: number } | null>(null);
+  const [fuelTypeStats, setFuelTypeStats] = useState<{ fuel_type: string; count: number; total_mw: number; avg_cost_per_kw: number }[]>([]);
+  const [utilityStats, setUtilityStats] = useState<{ utility: string; count: number; total_mw: number; avg_risk: number }[]>([]);
+
   // Filters
   const [sortBy, setSortBy] = useState("cost_rank");
   const [sortOrder, setSortOrder] = useState("asc");
   const [utilityFilter, setUtilityFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
 
-  const cluster = "TC2";
-  const phase = "PHASE_1";
+  // Table scroll ref
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load initial data
+  const cluster = selectedCluster;
+  const phase = selectedPhase;
+
+  // Load initial data and charts
   useEffect(() => {
     async function loadData() {
       try {
-        const [summaryData, filterData] = await Promise.all([
+        const [summaryData, filterData, costDist, riskData, fuelData, utilData] = await Promise.all([
           getClusterSummary(cluster, phase),
           getClusterFilterOptions(cluster, phase),
+          getCostDistribution(cluster, phase),
+          getRiskBreakdown(cluster, phase),
+          getClusterStatsByFuelType(cluster, phase),
+          getClusterStatsByUtility(cluster, phase),
         ]);
         setSummary(summaryData);
         setFilterOptions(filterData);
+        setCostDistribution(costDist);
+        setRiskBreakdown(riskData);
+        setFuelTypeStats(fuelData);
+        setUtilityStats(utilData);
       } catch (error) {
         console.error("Failed to load cluster data:", error);
       }
     }
     loadData();
-  }, []);
+  }, [cluster, phase]);
 
   // Load projects when filters change
   useEffect(() => {
@@ -126,7 +184,7 @@ export default function ClusterPage() {
           state: stateFilter || undefined,
           sort_by: sortBy,
           sort_order: sortOrder,
-          limit: 50,
+          limit: 500, // Load all projects for full table
         });
         setProjects(data);
       } catch (error) {
@@ -136,7 +194,7 @@ export default function ClusterPage() {
       }
     }
     loadProjects();
-  }, [sortBy, sortOrder, utilityFilter, stateFilter]);
+  }, [cluster, phase, sortBy, sortOrder, utilityFilter, stateFilter]);
 
   // Search projects
   useEffect(() => {
@@ -149,19 +207,20 @@ export default function ClusterPage() {
       setIsSearching(true);
       try {
         const results = await searchClusterProjects(searchQuery, cluster, phase);
-        // Convert search results to ClusterProject format
-        setSearchResults(results.map((r) => ({
-          project_id: r.project_id,
-          developer: r.developer,
-          utility: r.utility,
-          state: null,
-          fuel_type: null,
-          mw_capacity: r.mw_capacity,
-          total_cost: r.total_cost,
-          cost_per_kw: null,
-          risk_score_overall: null,
-          cost_rank: null,
-        })));
+        setSearchResults(
+          results.map((r) => ({
+            project_id: r.project_id,
+            developer: r.developer,
+            utility: r.utility,
+            state: null,
+            fuel_type: null,
+            mw_capacity: r.mw_capacity,
+            total_cost: r.total_cost,
+            cost_per_kw: null,
+            risk_score_overall: null,
+            cost_rank: null,
+          }))
+        );
       } catch (error) {
         console.error("Search failed:", error);
       } finally {
@@ -170,26 +229,112 @@ export default function ClusterPage() {
     }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [searchQuery]);
+  }, [searchQuery, cluster, phase]);
 
   const displayProjects = searchQuery.length >= 2 ? searchResults : projects;
 
+  // Table scroll handlers
+  const scrollTable = (direction: "left" | "right") => {
+    if (tableContainerRef.current) {
+      const scrollAmount = 300;
+      tableContainerRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // Prepare chart data
+  const costChartData = costDistribution?.bins.map((bin, i) => ({
+    bin,
+    count: costDistribution.counts[i],
+  })).filter(d => d.count > 0).slice(0, 15) || [];
+
+  const fuelPieData = fuelTypeStats.map((f) => ({
+    name: f.fuel_type,
+    value: f.count,
+    mw: f.total_mw,
+  }));
+
+  const riskRadarData = riskBreakdown
+    ? [
+        { subject: "Cost", value: riskBreakdown.cost, fullMark: 100 },
+        { subject: "Concentration", value: riskBreakdown.concentration, fullMark: 100 },
+        { subject: "Dependency", value: riskBreakdown.dependency, fullMark: 100 },
+        { subject: "Timeline", value: riskBreakdown.timeline, fullMark: 100 },
+      ]
+    : [];
+
+  const utilityBarData = utilityStats.slice(0, 10).map((u) => ({
+    name: u.utility.length > 15 ? u.utility.substring(0, 15) + "..." : u.utility,
+    fullName: u.utility,
+    projects: u.count,
+    mw: Math.round(u.total_mw),
+  }));
+
   return (
     <div className="container mx-auto px-4 py-6">
-      {/* Header */}
+      {/* Header with Cluster Selection */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-blue-400">
             <TrendingUp className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">PJM Cluster Study Analyzer</h1>
-            <p className="text-muted-foreground">
-              TC2 Phase 1 Cost Allocation Analysis
-            </p>
+            <h1 className="text-2xl font-bold">Cluster Study Analyzer</h1>
+            <p className="text-muted-foreground">Interconnection cost allocation analysis</p>
           </div>
         </div>
-        <div className="flex gap-2 mt-3">
+
+        {/* ISO / Cluster / Phase Selection */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <Select value={selectedISO} onValueChange={setSelectedISO}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Select ISO" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PJM">PJM</SelectItem>
+              <SelectItem value="MISO" disabled>
+                MISO (Coming Soon)
+              </SelectItem>
+              <SelectItem value="CAISO" disabled>
+                CAISO (Coming Soon)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedCluster} onValueChange={setSelectedCluster}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Select Cluster" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TC2">TC2 (2024)</SelectItem>
+              <SelectItem value="TC1" disabled>
+                TC1 (Coming Soon)
+              </SelectItem>
+              <SelectItem value="Cycle1" disabled>
+                Cycle 1 (Coming Soon)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedPhase} onValueChange={setSelectedPhase}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Select Phase" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PHASE_1">Phase 1 (SIS)</SelectItem>
+              <SelectItem value="PHASE_2" disabled>
+                Phase 2 (Coming Soon)
+              </SelectItem>
+              <SelectItem value="PHASE_3" disabled>
+                Phase 3 (Coming Soon)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex gap-2">
           <Badge variant="outline" className="gap-1">
             <Zap className="h-3 w-3" />
             {summary?.total_projects || 0} Projects
@@ -198,7 +343,7 @@ export default function ClusterPage() {
             <DollarSign className="h-3 w-3" />
             {formatCurrency(summary?.total_cost || 0)} Total Cost
           </Badge>
-          <Badge variant="secondary">Phase 1 SIS Results</Badge>
+          <Badge variant="secondary">{selectedPhase === "PHASE_1" ? "Phase 1 SIS Results" : selectedPhase}</Badge>
         </div>
       </div>
 
@@ -207,55 +352,37 @@ export default function ClusterPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Projects
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Projects</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{summary.total_projects}</div>
-              <p className="text-xs text-muted-foreground">
-                {formatMW(summary.total_mw)} capacity
-              </p>
+              <p className="text-xs text-muted-foreground">{formatMW(summary.total_mw)} capacity</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Cost Allocated
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost Allocated</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(summary.total_cost)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Avg: {formatCurrency(summary.avg_cost_per_kw)}/kW
-              </p>
+              <div className="text-2xl font-bold">{formatCurrency(summary.total_cost)}</div>
+              <p className="text-xs text-muted-foreground">Avg: {formatCurrency(summary.avg_cost_per_kw)}/kW</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Average Risk Score
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Average Risk Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {safeNumber(summary.avg_risk_score)?.toFixed(1) ?? "—"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                out of 100
-              </p>
+              <div className="text-2xl font-bold">{safeNumber(summary.avg_risk_score)?.toFixed(1) ?? "—"}</div>
+              <p className="text-xs text-muted-foreground">out of 100</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Risk Distribution
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Risk Distribution</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-1 h-6">
@@ -287,6 +414,105 @@ export default function ClusterPage() {
           </Card>
         </div>
       )}
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Cost Distribution Histogram */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Cost Distribution ($/kW)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={costChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="bin" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Fuel Type Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Projects by Fuel Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={fuelPieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {fuelPieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={FUEL_COLORS[entry.name] || CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name, props) => [`${value} projects (${formatMW(props.payload.mw)})`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Risk Radar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Average Risk Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={riskRadarData}>
+                  <PolarGrid stroke="#e5e7eb" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <Radar name="Risk Score" dataKey="value" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.5} />
+                  <Tooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Utility Bar Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Top Utilities by Project Count</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={utilityBarData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
+                  <Tooltip
+                    formatter={(value, name, props) => [
+                      name === "projects" ? `${value} projects` : `${value} MW`,
+                      props.payload.fullName,
+                    ]}
+                  />
+                  <Bar dataKey="projects" fill="#10B981" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Search and Filters */}
       <Card className="mb-6">
@@ -356,84 +582,76 @@ export default function ClusterPage() {
         </CardContent>
       </Card>
 
-      {/* Projects Table */}
+      {/* Projects Table with Horizontal Scroll */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">
-            {searchQuery.length >= 2
-              ? `Search Results (${searchResults.length})`
-              : `Projects (${projects.length})`}
+            {searchQuery.length >= 2 ? `Search Results (${searchResults.length})` : `All Projects (${projects.length})`}
           </CardTitle>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={() => scrollTable("left")}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => scrollTable("right")}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading && !searchQuery ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading projects...
-            </div>
+            <div className="text-center py-8 text-muted-foreground">Loading projects...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Project ID</TableHead>
-                  <TableHead>Developer</TableHead>
-                  <TableHead>Utility</TableHead>
-                  <TableHead className="text-right">MW</TableHead>
-                  <TableHead className="text-right">Total Cost</TableHead>
-                  <TableHead className="text-right">$/kW</TableHead>
-                  <TableHead className="text-center">Risk</TableHead>
-                  <TableHead className="text-center">Rank</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayProjects.map((project) => (
-                  <TableRow key={project.project_id}>
-                    <TableCell>
-                      <Link
-                        href={`/cluster/${project.project_id}`}
-                        className="font-medium text-blue-600 hover:underline"
-                      >
-                        {project.project_id}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {project.developer || "—"}
-                    </TableCell>
-                    <TableCell>{project.utility || "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {formatMW(project.mw_capacity)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(project.total_cost)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {safeNumber(project.cost_per_kw) !== null
-                        ? `$${safeNumber(project.cost_per_kw)!.toFixed(0)}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant="secondary"
-                        className={`${getRiskColor(project.risk_score_overall)} text-white`}
-                      >
-                        {getRiskLabel(project.risk_score_overall)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {project.cost_rank ? `#${project.cost_rank}` : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {displayProjects.length === 0 && (
+            <div ref={tableContainerRef} className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      {searchQuery.length >= 2 && !isSearching
-                        ? "No matching projects found"
-                        : "No projects available"}
-                    </TableCell>
+                    <TableHead className="w-[100px] sticky left-0 bg-background z-10">Project ID</TableHead>
+                    <TableHead className="min-w-[200px]">Developer</TableHead>
+                    <TableHead className="min-w-[150px]">Utility</TableHead>
+                    <TableHead className="min-w-[80px]">State</TableHead>
+                    <TableHead className="min-w-[100px]">Fuel Type</TableHead>
+                    <TableHead className="text-right min-w-[80px]">MW</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Total Cost</TableHead>
+                    <TableHead className="text-right min-w-[80px]">$/kW</TableHead>
+                    <TableHead className="text-center min-w-[80px]">Risk</TableHead>
+                    <TableHead className="text-center min-w-[80px]">Rank</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {displayProjects.map((project) => (
+                    <TableRow key={project.project_id} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell className="sticky left-0 bg-background z-10">
+                        <Link href={`/cluster/${project.project_id}`} className="font-medium text-blue-600 hover:underline">
+                          {project.project_id}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">{project.developer || "—"}</TableCell>
+                      <TableCell>{project.utility || "—"}</TableCell>
+                      <TableCell>{project.state || "—"}</TableCell>
+                      <TableCell>{project.fuel_type || "—"}</TableCell>
+                      <TableCell className="text-right">{formatMW(project.mw_capacity)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(project.total_cost)}</TableCell>
+                      <TableCell className="text-right">
+                        {safeNumber(project.cost_per_kw) !== null ? `$${safeNumber(project.cost_per_kw)!.toFixed(0)}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className={`${getRiskColor(project.risk_score_overall)} text-white`}>
+                          {getRiskLabel(project.risk_score_overall)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{project.cost_rank ? `#${project.cost_rank}` : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {displayProjects.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        {searchQuery.length >= 2 && !isSearching ? "No matching projects found" : "No projects available"}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

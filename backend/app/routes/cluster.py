@@ -634,3 +634,89 @@ def get_top_upgrades(
         }
         for u in upgrades
     ]
+
+
+@router.get("/analytics/by-fuel-type")
+def get_stats_by_fuel_type(
+    cluster: str = Query("TC2"),
+    phase: str = Query("PHASE_1"),
+    session: Session = Depends(get_session),
+):
+    """Get project counts and MW by fuel type"""
+    cluster_obj = session.exec(
+        select(PJMCluster).where(
+            PJMCluster.cluster_name == cluster,
+            PJMCluster.phase == phase
+        )
+    ).first()
+
+    if not cluster_obj:
+        return []
+
+    stats = session.exec(
+        select(
+            PJMProjectCost.fuel_type,
+            func.count(PJMProjectCost.id).label("count"),
+            func.sum(PJMProjectCost.mw_capacity).label("total_mw"),
+            func.sum(PJMProjectCost.total_cost).label("total_cost"),
+            func.avg(PJMProjectCost.cost_per_kw).label("avg_cost_per_kw"),
+        )
+        .where(PJMProjectCost.cluster_id == cluster_obj.id)
+        .where(PJMProjectCost.fuel_type.isnot(None))
+        .group_by(PJMProjectCost.fuel_type)
+        .order_by(func.sum(PJMProjectCost.mw_capacity).desc())
+    ).all()
+
+    return [
+        {
+            "fuel_type": s[0],
+            "count": s[1],
+            "total_mw": float(s[2]) if s[2] else 0,
+            "total_cost": float(s[3]) if s[3] else 0,
+            "avg_cost_per_kw": float(s[4]) if s[4] else 0,
+        }
+        for s in stats
+    ]
+
+
+@router.get("/analytics/by-utility")
+def get_stats_by_utility(
+    cluster: str = Query("TC2"),
+    phase: str = Query("PHASE_1"),
+    session: Session = Depends(get_session),
+):
+    """Get project counts and costs by utility"""
+    cluster_obj = session.exec(
+        select(PJMCluster).where(
+            PJMCluster.cluster_name == cluster,
+            PJMCluster.phase == phase
+        )
+    ).first()
+
+    if not cluster_obj:
+        return []
+
+    stats = session.exec(
+        select(
+            PJMProjectCost.utility,
+            func.count(PJMProjectCost.id).label("count"),
+            func.sum(PJMProjectCost.mw_capacity).label("total_mw"),
+            func.sum(PJMProjectCost.total_cost).label("total_cost"),
+            func.avg(PJMProjectCost.risk_score_overall).label("avg_risk"),
+        )
+        .where(PJMProjectCost.cluster_id == cluster_obj.id)
+        .where(PJMProjectCost.utility.isnot(None))
+        .group_by(PJMProjectCost.utility)
+        .order_by(func.count(PJMProjectCost.id).desc())
+    ).all()
+
+    return [
+        {
+            "utility": s[0],
+            "count": s[1],
+            "total_mw": float(s[2]) if s[2] else 0,
+            "total_cost": float(s[3]) if s[3] else 0,
+            "avg_risk": float(s[4]) if s[4] else 0,
+        }
+        for s in stats
+    ]

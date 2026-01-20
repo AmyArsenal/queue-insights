@@ -423,3 +423,19 @@ export async function getRiskBreakdown(
 ): Promise<{ cost: number; concentration: number; dependency: number; timeline: number; overall: number }> {
   return fetchAPI(`/api/cluster/analytics/risk-breakdown?cluster=${cluster}&phase=${phase}`);
 }
+
+// Get stats by fuel type
+export async function getClusterStatsByFuelType(
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<{ fuel_type: string; count: number; total_mw: number; total_cost: number; avg_cost_per_kw: number }[]> {
+  return fetchAPI(`/api/cluster/analytics/by-fuel-type?cluster=${cluster}&phase=${phase}`);
+}
+
+// Get stats by utility
+export async function getClusterStatsByUtility(
+  cluster = "TC2",
+  phase = "PHASE_1"
+): Promise<{ utility: string; count: number; total_mw: number; total_cost: number; avg_risk: number }[]> {
+  return fetchAPI(`/api/cluster/analytics/by-utility?cluster=${cluster}&phase=${phase}`);
+}

@@ -61,9 +61,9 @@ const agents = [
 ];
 
 const stats = [
-  { label: "Projects Analyzed", value: "36,441", color: "text-[oklch(0.75_0.18_195)]" },
-  { label: "ISO Regions", value: "9", color: "text-[oklch(0.7_0.25_330)]" },
-  { label: "Active Capacity", value: "2,290 GW", color: "text-[oklch(0.65_0.25_280)]" },
+  { label: "Instant Comparisons", value: "Ask", color: "text-[oklch(0.75_0.18_195)]" },
+  { label: "Peer Benchmarking", value: "Compare", color: "text-[oklch(0.7_0.25_330)]" },
+  { label: "Risk Visibility", value: "Decide", color: "text-[oklch(0.65_0.25_280)]" },
 ];
 
 export default function Home() {
@@ -118,16 +118,19 @@ export default function Home() {
 
             {/* Main headline */}
             <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="text-white">Energy is bottlenecked.</span>
+              <span className="text-white">Track cluster results across</span>
               <br />
               <span className="gradient-text">
-                Intelligence is the fix.
+                7 ISOs. Instantly.
               </span>
             </h1>
 
-            <p className="text-lg md:text-xl text-white/60 mb-8 max-w-2xl mx-auto">
-              The first AI layer for grid interconnection—queues, clusters, tariffs, cost allocations.
-              Ask anything. Get answers in seconds.
+            <p className="text-lg md:text-xl text-white/60 mb-4 max-w-2xl mx-auto">
+              PJM, MISO, CAISO, ERCOT, SPP, NYISO, and ISO-NE. Our agents are trained on tariffs, interconnection rules, timelines, and cost allocations.
+            </p>
+
+            <p className="text-base md:text-lg text-white/50 mb-8 max-w-xl mx-auto">
+              No hallucinations—just sourced answers from actual study data.
             </p>
 
             {/* Interactive search box */}
@@ -218,6 +221,18 @@ export default function Home() {
                   <div className="text-sm text-white/50">{stat.label}</div>
                 </div>
               ))}
+            </motion.div>
+
+            {/* Tagline */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="mt-10 text-center"
+            >
+              <p className="text-white/40 text-sm">
+                We handle the data mess. <span className="text-white/70 font-medium">You handle the decisions—before the window closes.</span>
+              </p>
             </motion.div>
           </motion.div>
         </div>

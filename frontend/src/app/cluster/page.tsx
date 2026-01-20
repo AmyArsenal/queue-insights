@@ -31,42 +31,52 @@ import {
   type ClusterFilterOptions,
 } from "@/lib/api";
 
-function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
-}
-
-function formatMW(value: number | null | undefined): string {
-  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return "—";
-  return `${value.toFixed(0)} MW`;
-}
-
-function getRiskColor(score: number | null | undefined): string {
-  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "bg-gray-200";
-  if (score < 25) return "bg-green-500";
-  if (score < 50) return "bg-yellow-500";
-  if (score < 75) return "bg-orange-500";
-  return "bg-red-500";
-}
-
-function getRiskLabel(score: number | null | undefined): string {
-  if (score === null || score === undefined || typeof score !== 'number' || isNaN(score)) return "Unknown";
-  if (score < 25) return "Low";
-  if (score < 50) return "Medium";
-  if (score < 75) return "High";
-  return "Critical";
-}
-
-function safeNumber(value: unknown): number {
+function safeNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
   if (typeof value === 'number' && !isNaN(value)) return value;
   if (typeof value === 'string') {
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) return parsed;
   }
-  return 0;
+  return null;
+}
+
+function formatCurrency(value: unknown): string {
+  const num = safeNumber(value);
+  if (num === null) return "—";
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`;
+  return `$${num.toFixed(0)}`;
+}
+
+function formatMW(value: unknown): string {
+  const num = safeNumber(value);
+  if (num === null) return "—";
+  return `${num.toFixed(0)} MW`;
+}
+
+function getRiskColor(score: unknown): string {
+  const num = safeNumber(score);
+  if (num === null) return "bg-gray-200";
+  if (num < 25) return "bg-green-500";
+  if (num < 50) return "bg-yellow-500";
+  if (num < 75) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+function getRiskLabel(score: unknown): string {
+  const num = safeNumber(score);
+  if (num === null) return "Unknown";
+  if (num < 25) return "Low";
+  if (num < 50) return "Medium";
+  if (num < 75) return "High";
+  return "Critical";
+}
+
+function safeNumberOrZero(value: unknown): number {
+  const num = safeNumber(value);
+  return num === null ? 0 : num;
 }
 
 export default function ClusterPage() {
@@ -233,9 +243,7 @@ export default function ClusterPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {typeof summary.avg_risk_score === 'number' && !isNaN(summary.avg_risk_score)
-                  ? summary.avg_risk_score.toFixed(1)
-                  : "—"}
+                {safeNumber(summary.avg_risk_score)?.toFixed(1) ?? "—"}
               </div>
               <p className="text-xs text-muted-foreground">
                 out of 100
@@ -252,8 +260,8 @@ export default function ClusterPage() {
             <CardContent>
               <div className="flex gap-1 h-6">
                 {["low", "medium", "high", "critical"].map((level) => {
-                  const count = safeNumber(summary.risk_distribution?.[level]);
-                  const totalProjects = safeNumber(summary.total_projects);
+                  const count = safeNumberOrZero(summary.risk_distribution?.[level]);
+                  const totalProjects = safeNumberOrZero(summary.total_projects);
                   const percent = totalProjects > 0 ? (count / totalProjects) * 100 : 0;
                   const colors: Record<string, string> = {
                     low: "bg-green-500",
@@ -272,8 +280,8 @@ export default function ClusterPage() {
                 })}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Low: {safeNumber(summary.risk_distribution?.low)}</span>
-                <span>High: {safeNumber(summary.risk_distribution?.high) + safeNumber(summary.risk_distribution?.critical)}</span>
+                <span>Low: {safeNumberOrZero(summary.risk_distribution?.low)}</span>
+                <span>High: {safeNumberOrZero(summary.risk_distribution?.high) + safeNumberOrZero(summary.risk_distribution?.critical)}</span>
               </div>
             </CardContent>
           </Card>
@@ -398,8 +406,8 @@ export default function ClusterPage() {
                       {formatCurrency(project.total_cost)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {typeof project.cost_per_kw === 'number' && !isNaN(project.cost_per_kw)
-                        ? `$${project.cost_per_kw.toFixed(0)}`
+                      {safeNumber(project.cost_per_kw) !== null
+                        ? `$${safeNumber(project.cost_per_kw)!.toFixed(0)}`
                         : "—"}
                     </TableCell>
                     <TableCell className="text-center">

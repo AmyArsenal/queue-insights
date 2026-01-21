@@ -438,7 +438,7 @@ export default function ClusterPage() {
                   <XAxis dataKey="bin" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip
-                    formatter={(value: number) => [`${value} projects`, "Count"]}
+                    formatter={(value) => [`${value} projects`, "Count"]}
                     labelFormatter={(label) => `Cost Range: ${label}`}
                   />
                   <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Projects" />

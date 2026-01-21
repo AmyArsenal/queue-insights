@@ -10,6 +10,7 @@ import {
   Database,
   ChevronRight,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { sendAgentMessage } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";

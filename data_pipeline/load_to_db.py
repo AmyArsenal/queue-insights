@@ -65,6 +65,8 @@ def load_project(conn, cluster_id: int, report: dict) -> int:
     # Calculate cost per kW
     mw_capacity = excel_data.get('mw_capacity', 0) or 0
     total_cost = cost.get('total_cost', 0) or 0
+    # If MW > 0, calculate $/kW (even if total_cost is 0, that's valid - $0/kW)
+    # If MW is 0 (standalone storage), cost_per_kw is not applicable
     cost_per_kw = (total_cost / (mw_capacity * 1000)) if mw_capacity > 0 else None
 
     with conn.cursor() as cur:
@@ -113,17 +115,17 @@ def load_project(conn, cluster_id: int, report: dict) -> int:
                 excel_data.get('state', ''),
                 excel_data.get('county', ''),
                 excel_data.get('fuel_type', ''),
-                mw_capacity or None,
+                mw_capacity if mw_capacity > 0 else None,  # 0 MW = standalone storage, store as NULL
                 excel_data.get('mw_energy', None),
                 excel_data.get('status', 'Active'),
-                total_cost or None,
+                total_cost,  # Keep 0 as 0, not NULL - $0 cost is valid data
                 cost_per_kw,
-                cost.get('toif_cost', None),
-                cost.get('stand_alone_cost', None),
-                cost.get('network_upgrade_cost', None),
-                cost.get('system_reliability_cost', None),
-                readiness.get('rd1_amount', None),
-                readiness.get('rd2_amount', None),
+                cost.get('toif_cost', 0) or 0,  # Use 0 not NULL for cost fields
+                cost.get('stand_alone_cost', 0) or 0,
+                cost.get('network_upgrade_cost', 0) or 0,
+                cost.get('system_reliability_cost', 0) or 0,
+                readiness.get('rd1_amount', 0) or 0,
+                readiness.get('rd2_amount', 0) or 0,
                 report.get('report_url', '')
             )
         )

@@ -1,6 +1,6 @@
-# Queue Insights
+# GridAgent
 
-> The best interconnection queue tracker for the US grid.
+> ISO-Specific Intelligence. Generation Interconnection Cluster Results. Tariff Knowledge.
 
 ## Quick Reference
 
@@ -10,7 +10,7 @@
 | Backend | `backend/` - FastAPI, SQLModel |
 | Data Pipeline | `data_pipeline/` - PJM scraper, loaders |
 | Database | Supabase PostgreSQL |
-| Live Site | https://queue-insights.vercel.app |
+| Live Site | https://gridagent.io |
 
 ---
 
@@ -31,17 +31,17 @@
 ## Project Structure
 
 ```
-Queue Insights/
+GridAgent/
 ├── CLAUDE.md                 # THIS FILE - Single source of truth
 ├── frontend/
 │   └── src/
 │       ├── app/
-│       │   ├── page.tsx          # Landing page
-│       │   ├── explorer/         # Map | Charts | Data tabs
+│       │   ├── page.tsx          # Landing page (black/white minimal design)
+│       │   ├── queue/            # Queue explorer (formerly /explorer)
 │       │   ├── cluster/          # PJM Cluster analyzer
 │       │   │   ├── page.tsx      # Project list
 │       │   │   └── [projectId]/  # Project dashboard
-│       │   ├── agent/            # AI Agent (placeholder)
+│       │   ├── agent/            # GridAgent AI interface (placeholder)
 │       │   └── about/            # About page
 │       ├── components/
 │       │   ├── ui/               # shadcn (12+ components)
@@ -82,7 +82,7 @@ Queue Insights/
 ## Database Schema (Supabase)
 
 ### Table 1: queue_projects (36,441 rows)
-LBNL Queued Up national dataset - all US ISOs.
+National queue dataset - all US ISOs.
 
 ```
 q_id, q_status, q_date, region, state, county, fips_code
@@ -90,7 +90,7 @@ project_name, developer, utility, poi_name
 type_clean, mw1, mw2, mw3, q_year
 ```
 
-### Table 2: pjm_clusters (1 row)
+### Table 2: pjm_clusters
 Cluster study metadata.
 
 ```
@@ -98,35 +98,39 @@ id, cluster_name (TC2), phase (PHASE_1)
 total_projects, total_mw, decision_deadline
 ```
 
-### Table 3: pjm_project_costs (452 rows)
+### Table 3: pjm_project_costs
 Project cost allocations and risk scores.
 
 ```
 project_id, cluster_id, developer, utility, state, county, fuel_type
-mw_capacity, total_cost, cost_per_kw
+mw_capacity, mw_energy, project_status, total_cost, cost_per_kw
 
 -- Cost breakdown
 toif_cost, stand_alone_cost, network_upgrade_cost, system_reliability_cost
 
 -- Readiness deposits
-rd1_amount, rd2_amount
+rd1_amount, rd2_amount, rd2_due_date
+
+-- Timeline
+requested_cod
 
 -- Risk scores (0-100)
 risk_score_overall, risk_score_cost, risk_score_concentration
-risk_score_dependency, risk_score_timeline (overload count)
+risk_score_dependency, risk_score_timeline
 
 -- Ranking
 cost_rank (by $/kW), cost_percentile
 ```
 
-### Table 4: pjm_upgrades (1,339 rows)
+### Table 4: pjm_upgrades
 Network upgrades from cluster studies.
 
 ```
-id, cluster_id, rtep_id, to_id, utility, title, total_cost, shared_by_count
+id, cluster_id, rtep_id, to_id, utility
+title, upgrade_type, total_cost, shared_by_count, upgrade_cod
 ```
 
-### Table 5: pjm_project_upgrades (8,708 rows)
+### Table 5: pjm_project_upgrades
 Project-to-upgrade cost allocations.
 
 ```
@@ -134,6 +138,29 @@ project_id, upgrade_id, cluster_id
 link_type (COST_ALLOCATED | TAGGED_NO_COST)
 mw_impact, percent_allocation, allocated_cost
 ```
+
+### Table 6: pjm_facility_overloads
+Line loading data for withdrawal simulation.
+
+```
+id, cluster_id, upgrade_id
+facility_name, contingency_name, contingency_type
+loading_pct, rating_mva, mva_to_mitigate
+total_mw_contribution, contributing_project_count
+```
+
+### Table 7: pjm_mw_contributions
+Project contributions to facility overloads (for simulation).
+
+```
+id, facility_overload_id, project_id
+mw_contribution, contribution_type (50/50, Solar/Wind Harmer, Adder)
+```
+
+### Views
+- `v_project_summary` - Project with cluster context
+- `v_project_upgrade_exposure` - Project upgrade details
+- `v_codependent_projects` - Projects sharing upgrades
 
 ---
 
@@ -215,9 +242,16 @@ ANTHROPIC_API_KEY=sk-ant-xxx  # For future AI agent
 ## Project Status
 
 ### Completed
-- [x] Landing page with stats
+- [x] **GridAgent Branding & Landing Page Redesign**
+  - [x] Minimal black/white design with green accent (#4FFFB0)
+  - [x] Starry background animation (CSS radial gradients)
+  - [x] New copy: "Track Cluster Results Across ISOs"
+  - [x] Stats: Ask → Compare → Decide flow
+  - [x] Specialized AI Agents section (PJM Live, others Coming Soon)
+  - [x] "We Handle The Cluster Results Data Mess. You Handle The Decisions."
+  - [x] Waitlist modal with GA logo
 - [x] Interactive US map (county heatmap)
-- [x] Explorer tabs: Map | Charts | Data
+- [x] Queue explorer with Map | Charts | Data tabs
 - [x] Global filters (region, type, status)
 - [x] 8 chart components
 - [x] Data table with sorting/pagination
@@ -226,16 +260,39 @@ ANTHROPIC_API_KEY=sk-ant-xxx  # For future AI agent
   - [x] Project dashboard with risk scores
   - [x] Cost breakdown and upgrade details
   - [x] Co-dependent project links
-- [x] Deployed to Vercel + Railway
+- [x] Deployed to Vercel (gridagent.io) + Railway
 
 ### In Progress
-- [ ] Deploy PJM Cluster feature to production
+- [ ] Deploy backend CORS fix for gridagent.io domain
+
+### Recently Completed
+- [x] **CORS Configuration** - Added gridagent.io to backend allowed origins
+- [x] **Cluster Charts Enhancement** - $/kW histogram with average reference line (orange dashed)
 
 ### Planned (Future)
-- [ ] AI Agent (GridAgent) - see docs/GRIDAGENT.md
+- [ ] GridAgent AI Assistant - see docs/GRIDAGENT.md
 - [ ] Auth & user accounts
 - [ ] Saved queries & alerts
 - [ ] More cluster studies (TC1, Cycle 1)
+- [ ] MISO, NYISO/ISO-NE, SPP agent support
+
+---
+
+## Cluster Page Charts
+
+The `/cluster` page displays 4 analytical charts:
+
+| Chart | Type | Purpose |
+|-------|------|---------|
+| **Cost Distribution** | Histogram with Avg line | $/kW distribution with orange dashed average reference |
+| **Projects by Fuel Type** | Donut | Solar, Wind, Storage, Gas breakdown |
+| **Risk Breakdown** | Radar | Average scores: Cost, Concentration, Dependency, Timeline |
+| **Top Utilities** | Horizontal Bar | Project count by transmission owner |
+
+Chart colors:
+- Histogram bars: `#3B82F6` (blue)
+- Average line: `#F97316` (orange, dashed)
+- Fuel types: See Design Tokens
 
 ---
 
@@ -257,22 +314,35 @@ ANTHROPIC_API_KEY=sk-ant-xxx  # For future AI agent
 ## Design Tokens
 
 ```
-Primary:    #3B82F6 (blue)
+# Brand Colors (Minimal Black/White + Green Accent)
+Background:  #000000 (black)
+Foreground:  #FFFFFF (white)
+Accent:      #4FFFB0 (green - for highlights, "Accessible" text)
+Live Badge:  emerald-500 (Tailwind - for "Live" status with ping animation)
+
+# Fuel Type Colors (for charts)
 Solar:      #FBBF24 (yellow)
 Wind:       #14B8A6 (teal)
 Storage:    #8B5CF6 (purple)
 Gas:        #6B7280 (gray)
 
-ISO Regions:
-CAISO: #3B82F6, ERCOT: #F59E0B, MISO: #10B981, PJM: #8B5CF6
-SPP: #14B8A6, NYISO: #EC4899, ISO-NE: #6366F1, West: #F97316, Southeast: #84CC16
+# ISO Agents Status
+PJM:        Live (green badge with ping animation)
+MISO:       Coming Soon
+NYISO/ISO-NE: Coming Soon
+SPP:        Coming Soon
+
+# UI Elements
+Borders:    white/10 - white/30
+Cards:      zinc-900 with white/10 border
+Buttons:    White bg with black text (primary), transparent with white border (secondary)
 ```
 
 ---
 
 ## Live URLs
 
-- **Frontend:** https://queue-insights.vercel.app
+- **Frontend:** https://gridagent.io (Vercel)
 - **Backend:** https://queue-insights-production.up.railway.app
 - **GitHub:** https://github.com/AmyArsenal/queue-insights
 

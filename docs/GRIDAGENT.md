@@ -1,10 +1,18 @@
-# GridAgent: AI Agent for PJM Interconnection Analysis
+# GridAgent: AI Agent for ISO Interconnection Analysis
 
-> Manus-style autonomous agent specialized for PJM cluster study analysis
+> ISO-Specific Intelligence for Generation Interconnection Cluster Results
 
 ## Vision
 
-Help developers navigate PJM interconnection queue by answering questions like:
+GridAgent helps energy developers, investors, and consultants navigate interconnection queues across multiple ISOs. Built by consultants with 10+ years of experience in generation interconnection studies.
+
+### Supported ISOs
+- **PJM** - Live (TC2 Phase 1 data)
+- **MISO** - Coming Soon
+- **NYISO/ISO-NE** - Coming Soon
+- **SPP** - Coming Soon
+
+### Example Questions
 - "What are my project's network upgrade costs compared to others in my cluster?"
 - "Which projects in TC1 have the highest withdrawal risk based on $/kW?"
 - "Show me all battery storage projects in my cluster with costs under $200/kW"
@@ -444,7 +452,7 @@ export async function chat(
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://queue-insights.vercel.app',
+      'HTTP-Referer': 'https://gridagent.io',
       'X-Title': 'GridAgent',
     },
     body: JSON.stringify({

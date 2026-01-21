@@ -163,7 +163,7 @@ export default function Home() {
             >
               <Button
                 size="lg"
-                className="rounded-full px-12 py-7 text-lg bg-white text-black hover:bg-white/90 transition-all duration-300 border-0 font-semibold"
+                className="rounded-full px-14 h-14 text-lg bg-white text-black hover:bg-white/90 transition-all duration-300 border-0 font-semibold"
                 onClick={() => setShowWaitlist(true)}
               >
                 Join Waitlist
@@ -172,7 +172,7 @@ export default function Home() {
               <Button
                 size="lg"
                 variant="outline"
-                className="rounded-full px-12 py-7 text-lg bg-transparent border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-300"
+                className="rounded-full px-14 h-14 text-lg bg-transparent border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-300"
                 onClick={() => setShowWaitlist(true)}
               >
                 Explore Data
@@ -275,7 +275,7 @@ export default function Home() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
             <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4 text-white">
-              Specialized GridAgent Agents
+              Specialized AI Agents
             </h2>
             <p className="text-lg text-white/60 max-w-2xl mx-auto">
               Our Agents have access to tariffs, interconnection rules, cluster results, cost allocation and timelines.

@@ -33,12 +33,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  ReferenceLine,
+  ComposedChart,
 } from "recharts";
 import {
   getClusterSummary,
@@ -417,21 +418,50 @@ export default function ClusterPage() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Cost Distribution Histogram */}
+        {/* Cost Distribution Histogram with Average Line */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Cost Distribution ($/kW)</CardTitle>
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Cost Distribution ($/kW)</span>
+              {summary?.avg_cost_per_kw && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  Avg: <span className="text-orange-500 font-medium">${safeNumber(summary.avg_cost_per_kw)?.toFixed(0)}/kW</span>
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={costChartData}>
+                <ComposedChart data={costChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="bin" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Tooltip
+                    formatter={(value: number) => [`${value} projects`, "Count"]}
+                    labelFormatter={(label) => `Cost Range: ${label}`}
+                  />
+                  <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Projects" />
+                  {summary?.avg_cost_per_kw && (
+                    <ReferenceLine
+                      x={(() => {
+                        const avgCost = safeNumber(summary.avg_cost_per_kw) || 0;
+                        const binIndex = Math.floor(avgCost / 100);
+                        return costChartData[binIndex]?.bin || costChartData[0]?.bin;
+                      })()}
+                      stroke="#F97316"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      label={{
+                        value: "Avg",
+                        position: "top",
+                        fill: "#F97316",
+                        fontSize: 11,
+                        fontWeight: 600
+                      }}
+                    />
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </CardContent>

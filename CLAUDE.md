@@ -348,6 +348,36 @@ Buttons:    White bg with black text (primary), transparent with white border (s
 
 ---
 
+## Custom Skills (Slash Commands)
+
+Located in `.claude/commands/`:
+
+| Command | Purpose |
+|---------|---------|
+| `/deploy` | Check deployment status (git, backend health, frontend, CORS) |
+| `/db-status` | Check database health and table counts |
+| `/add-chart` | Guide for adding Recharts to cluster page |
+| `/add-endpoint` | Guide for adding FastAPI endpoints |
+| `/add-scraper` | Guide for adding new ISO data scrapers |
+| `/debug` | Systematic debugging checklist |
+
+## Agent Usage Guide
+
+| Task | How to Ask |
+|------|------------|
+| **Explore codebase** | "Use explore agent to find how X works" |
+| **Plan new feature** | "Plan adding [feature]" → enters plan mode |
+| **Debug issues** | "Debug [issue] using an agent" |
+| **Quick fixes** | Just ask directly (no agent needed) |
+
+**Context management tips:**
+- Use Explore agent for questions (keeps context clean)
+- Run `/compact` after completing major tasks
+- Start new session for unrelated work
+- Plan agent for multi-file features
+
+---
+
 ## Notes for Claude Code
 
 1. **Database is Supabase** - Use SQLModel/SQLAlchemy, not raw psycopg2 in routes
@@ -355,3 +385,10 @@ Buttons:    White bg with black text (primary), transparent with white border (s
 3. **PJM data is scraped** - Not from an API, from HTML reports
 4. **Risk scores are calculated** - After data load, not during scrape
 5. **$/kW is the key metric** - Used for ranking, not total cost
+
+## Don't Do
+
+- Don't use raw SQL in routes (use SQLModel)
+- Don't add LBNL references (removed from branding)
+- Don't use neon colors (black/white/green #4FFFB0 only)
+- Don't read entire large files (use line ranges or Explore agent)

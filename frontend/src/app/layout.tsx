@@ -65,9 +65,11 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen flex-col">
+          <div className="flex min-h-screen flex-col bg-black relative">
+            {/* Global starry background */}
+            <div className="stars-container fixed inset-0 pointer-events-none" />
             <Header />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 relative z-10">{children}</main>
             <Footer />
           </div>
         </ThemeProvider>

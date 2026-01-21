@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import {
   ArrowRight,
   ArrowUp,
-  Zap,
   Paperclip,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -27,24 +26,24 @@ const agents = [
   },
   {
     name: "MISO Agent",
-    status: "Coming Q2",
+    status: "Coming Soon",
     description: "DPP/DISIS studies, BPM rules, queue analysis",
   },
   {
-    name: "CAISO Agent",
-    status: "Coming Q3",
-    description: "CAISO cluster studies, TPD allocation, queue data",
+    name: "NYISO/ISO-NE Agent",
+    status: "Coming Soon",
+    description: "NYISO & ISO-NE cluster studies, queue data",
   },
   {
     name: "SPP Agent",
-    status: "Coming Q4",
+    status: "Coming Soon",
     description: "SPP cluster studies, DISIS, queue data",
   },
 ];
 
 const stats = [
-  { label: "Instant Comparisons", value: "Ask" },
-  { label: "Peer Benchmarking", value: "Compare" },
+  { label: "ISO Related Questions", value: "Ask" },
+  { label: "Cost, Overloads, Peer Projects", value: "Compare" },
   { label: "Risk Visibility", value: "Decide" },
 ];
 
@@ -68,7 +67,7 @@ export default function Home() {
   return (
     <div className="flex flex-col bg-black">
       {/* Hero Section with Starry Background */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-black">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
         {/* Starry background */}
         <div className="stars-container absolute inset-0" />
 
@@ -77,33 +76,35 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mx-auto max-w-4xl text-center"
+            className="mx-auto max-w-5xl text-center"
           >
             {/* Badge */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-white/5 mb-8"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 mb-8"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-sm text-white/80">PJM Agent Now Live</span>
+              <span className="text-sm text-emerald-400">PJM Agent Now Live</span>
             </motion.div>
 
             {/* Main headline */}
-            <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
+            <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8">
               <span className="text-white">Track Cluster Results Across ISOs</span>
             </h1>
 
-            <p className="text-lg md:text-xl text-white/60 mb-4 max-w-2xl mx-auto">
-              ISO-specific intelligence. Cluster results data. Answers that actually help you decide.
+            {/* Subheadline - single line */}
+            <p className="text-lg md:text-xl lg:text-2xl text-[#4FFFB0] mb-6 max-w-4xl mx-auto font-medium">
+              ISO-Specific Intelligence. Generation Interconnection Cluster Results. Tariff Knowledge.
             </p>
 
-            <p className="text-base md:text-lg text-white/50 mb-8 max-w-xl mx-auto">
-              Ask questions in natural language and get instant results backed by facts.
+            {/* Secondary text */}
+            <p className="text-base md:text-lg text-white/60 mb-10 max-w-2xl mx-auto">
+              Ask Questions In Natural Language and Get Instant Results and Analysis.
             </p>
 
             {/* Interactive search box */}
@@ -111,7 +112,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="max-w-2xl mx-auto mb-6"
+              className="max-w-2xl mx-auto mb-8"
             >
               <form onSubmit={handleQuerySubmit} className="relative">
                 <div className="relative flex items-center bg-white/5 border border-white/20 rounded-2xl p-1 hover:border-white/30 transition-colors">
@@ -139,7 +140,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex flex-wrap justify-center gap-2 mb-8"
+              className="flex flex-wrap justify-center gap-2 mb-10"
             >
               <span className="text-sm text-white/40">Try:</span>
               {exampleQueries.map((example, index) => (
@@ -153,25 +154,25 @@ export default function Home() {
               ))}
             </motion.div>
 
-            {/* CTA Buttons */}
+            {/* CTA Buttons - Bigger */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14"
             >
               <Button
                 size="lg"
-                className="rounded-full px-8 bg-white text-black hover:bg-white/90 transition-all duration-300 border-0 font-semibold"
+                className="rounded-full px-12 py-7 text-lg bg-white text-black hover:bg-white/90 transition-all duration-300 border-0 font-semibold"
                 onClick={() => setShowWaitlist(true)}
               >
                 Join Waitlist
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="rounded-full px-8 bg-transparent border-white/20 text-white hover:bg-white/10 hover:border-white/30 transition-all duration-300"
+                className="rounded-full px-12 py-7 text-lg bg-transparent border-white/30 text-white hover:bg-white/10 hover:border-white/50 transition-all duration-300"
                 onClick={() => setShowWaitlist(true)}
               >
                 Explore Data
@@ -183,7 +184,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="flex justify-center gap-8 md:gap-16 mt-16 pt-8 border-t border-white/10"
+              className="flex justify-center gap-8 md:gap-16 pt-8 border-t border-white/10"
             >
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
@@ -198,10 +199,13 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="mt-10 text-center"
+              className="mt-14 text-center"
             >
-              <p className="text-white/40 text-sm">
-                We handle the data mess. <span className="text-white/70 font-medium">You handle the decisions—before the window closes.</span>
+              <p className="text-white/60 text-xl md:text-2xl mb-4">
+                We Handle The Cluster Results Data Mess. <span className="text-white font-semibold">You Handle The Decisions.</span>
+              </p>
+              <p className="text-[#4FFFB0] text-lg md:text-xl">
+                Built by Consultants with 10+ Years of Experience in Generation Interconnection Studies.
               </p>
             </motion.div>
           </motion.div>
@@ -223,7 +227,7 @@ export default function Home() {
             >
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-8 w-8 text-black" />
+                  <span className="text-2xl font-bold text-black font-heading">GA</span>
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2 font-heading">Get Early Access</h3>
                 <p className="text-white/60">
@@ -271,7 +275,7 @@ export default function Home() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-12">
             <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4 text-white">
-              Specialized AI Agents
+              Specialized GridAgent Agents
             </h2>
             <p className="text-lg text-white/60 max-w-2xl mx-auto">
               Our Agents have access to tariffs, interconnection rules, cluster results, cost allocation and timelines.
@@ -290,11 +294,17 @@ export default function Home() {
                 <Card className="bg-zinc-900/50 border-white/10 p-6 h-full relative overflow-hidden group hover:bg-zinc-900 hover:border-white/20 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4 relative">
                     <h3 className="text-lg font-semibold text-white font-heading">{agent.name}</h3>
-                    <span className={`text-xs px-3 py-1 rounded-full ${
+                    <span className={`text-xs px-3 py-1 rounded-full flex items-center gap-1.5 ${
                       agent.status === "Live"
-                        ? "bg-white/10 text-white border border-white/20"
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                         : "bg-white/5 text-white/50 border border-white/10"
                     }`}>
+                      {agent.status === "Live" && (
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+                        </span>
+                      )}
                       {agent.status}
                     </span>
                   </div>

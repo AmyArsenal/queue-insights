@@ -8,10 +8,10 @@ import {
   Zap,
   BarChart3,
   Database,
-  Loader2,
   ChevronRight,
   Sparkles,
 } from "lucide-react";
+import { sendAgentMessage } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart,
@@ -59,6 +59,144 @@ const suggestedQueries = [
 ];
 
 const CHART_COLORS = ["#4FFFB0", "#3B82F6", "#FBBF24", "#8B5CF6", "#F97316"];
+
+// Electron orbital thinking animation
+function ThinkingAnimation() {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative w-12 h-12">
+        {/* Center nucleus */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-3 h-3 rounded-full bg-[#4FFFB0] shadow-[0_0_12px_#4FFFB0]" />
+        </div>
+
+        {/* Orbital rings */}
+        {[0, 60, 120].map((rotation, i) => (
+          <div
+            key={i}
+            className="absolute inset-0"
+            style={{ transform: `rotate(${rotation}deg)` }}
+          >
+            {/* Orbital path */}
+            <div className="absolute inset-1 border border-white/10 rounded-full" />
+
+            {/* Electron */}
+            <motion.div
+              className="absolute w-2 h-2 rounded-full bg-[#4FFFB0] shadow-[0_0_8px_#4FFFB0]"
+              style={{
+                top: "50%",
+                left: "50%",
+                marginTop: "-4px",
+                marginLeft: "-4px",
+              }}
+              animate={{
+                rotate: 360,
+              }}
+              transition={{
+                duration: 1.5 + i * 0.3,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              // Position electron on orbital
+              initial={false}
+            >
+              <motion.div
+                animate={{
+                  x: [20, -20, 20],
+                  y: [0, 0, 0],
+                }}
+                transition={{
+                  duration: 1.5 + i * 0.3,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+              />
+            </motion.div>
+          </div>
+        ))}
+
+        {/* Animated electrons orbiting */}
+        <motion.div
+          className="absolute w-2 h-2 bg-[#4FFFB0] rounded-full shadow-[0_0_8px_#4FFFB0]"
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{
+            top: "calc(50% - 4px)",
+            left: "calc(50% - 4px)",
+            transformOrigin: "4px 4px",
+            transform: "translateX(20px)",
+          }}
+        />
+        <motion.div
+          className="absolute w-1.5 h-1.5 bg-[#3B82F6] rounded-full shadow-[0_0_6px_#3B82F6]"
+          animate={{
+            rotate: -360,
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{
+            top: "calc(50% - 3px)",
+            left: "calc(50% - 3px)",
+            transformOrigin: "3px 3px",
+            transform: "translateX(16px) rotate(60deg)",
+          }}
+        />
+        <motion.div
+          className="absolute w-1.5 h-1.5 bg-[#FBBF24] rounded-full shadow-[0_0_6px_#FBBF24]"
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{
+            top: "calc(50% - 3px)",
+            left: "calc(50% - 3px)",
+            transformOrigin: "3px 3px",
+            transform: "translateX(12px) rotate(120deg)",
+          }}
+        />
+      </div>
+
+      {/* Thinking text with animated dots */}
+      <div className="flex items-center gap-1">
+        <span className="text-sm text-white/60">Thinking</span>
+        <motion.span
+          className="text-[#4FFFB0]"
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1] }}
+        >
+          .
+        </motion.span>
+        <motion.span
+          className="text-[#4FFFB0]"
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1], delay: 0.2 }}
+        >
+          .
+        </motion.span>
+        <motion.span
+          className="text-[#4FFFB0]"
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1], delay: 0.4 }}
+        >
+          .
+        </motion.span>
+      </div>
+    </div>
+  );
+}
 
 export default function AgentPage() {
   const [query, setQuery] = useState("");
@@ -165,15 +303,31 @@ export default function AgentPage() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentQuery = query;
     setQuery("");
     setIsLoading(true);
 
-    // Simulate streaming delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Call real backend API
+      const apiResponse = await sendAgentMessage({ message: currentQuery });
 
-    const response = generateMockResponse(userMessage.content);
-    setMessages((prev) => [...prev, response]);
-    setIsLoading(false);
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: apiResponse.content,
+        chart: apiResponse.chart as Message["chart"],
+        sources: apiResponse.sources,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("API error, falling back to mock:", error);
+      // Fallback to mock response if API fails
+      const response = generateMockResponse(currentQuery);
+      setMessages((prev) => [...prev, response]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -357,14 +511,12 @@ export default function AgentPage() {
 
               {isLoading && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-3"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="py-4"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-[#4FFFB0]/10 flex items-center justify-center">
-                    <Loader2 className="w-3.5 h-3.5 text-[#4FFFB0] animate-spin" />
-                  </div>
-                  <span className="text-sm text-white/40">Analyzing...</span>
+                  <ThinkingAnimation />
                 </motion.div>
               )}
 

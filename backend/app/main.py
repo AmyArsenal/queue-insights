@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.database import create_db_and_tables
-from app.routes import projects_router, stats_router, cluster_router
+from app.routes import projects_router, stats_router, cluster_router, agent_router
 
 
 @asynccontextmanager
@@ -49,6 +49,7 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(stats_router)
 app.include_router(cluster_router)
+app.include_router(agent_router)
 
 
 @app.get("/")

@@ -439,3 +439,41 @@ export async function getClusterStatsByUtility(
 ): Promise<{ utility: string; count: number; total_mw: number; total_cost: number; avg_risk: number }[]> {
   return fetchAPI(`/api/cluster/analytics/by-utility?cluster=${cluster}&phase=${phase}`);
 }
+
+// ============================================================================
+// GRIDAGENT CHAT API
+// ============================================================================
+
+export interface AgentChatRequest {
+  message: string;
+  context?: Record<string, unknown>;
+}
+
+export interface AgentChartData {
+  type: "bar" | "pie" | "line" | "table" | "stat";
+  data: Record<string, unknown>[];
+  dataKey?: string;
+  nameKey?: string;
+}
+
+export interface AgentChatResponse {
+  content: string;
+  chart?: AgentChartData;
+  sources: string[];
+}
+
+export async function sendAgentMessage(request: AgentChatRequest): Promise<AgentChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/agent/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}

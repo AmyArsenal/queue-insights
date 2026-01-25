@@ -487,6 +487,88 @@ module.exports = {
 - Don't make API calls in render (use useEffect or SWR)
 - Don't skip loading states
 
+## Common React Pitfalls
+
+### useMemo vs useCallback
+
+```tsx
+// WRONG: Using useCallback for computed values
+const stats = useCallback(() => {
+  return computeExpensiveStats(data);
+}, [data]);
+const result = stats(); // Called every render!
+
+// CORRECT: Use useMemo for computed values
+const stats = useMemo(() => {
+  return computeExpensiveStats(data);
+}, [data]);
+// stats is the memoized value, not a function
+```
+
+**Rule**: `useCallback` memoizes a function reference. `useMemo` memoizes a computed value.
+
+### Deterministic Values in useMemo
+
+```tsx
+// WRONG: Non-deterministic values in useMemo
+const points = useMemo(() => {
+  return data.map(item => ({
+    ...item,
+    jitter: Math.random() * 0.5, // Changes every re-render!
+  }));
+}, [data]);
+
+// CORRECT: Derive deterministic values from stable identifiers
+function hashToJitter(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return ((hash % 1000) / 1000) - 0.5;
+}
+
+const points = useMemo(() => {
+  return data.map(item => ({
+    ...item,
+    jitter: hashToJitter(item.id) * 0.5, // Stable across re-renders
+  }));
+}, [data]);
+```
+
+### Nested Interactive Elements
+
+```tsx
+// WRONG: Nested interactive elements (invalid HTML)
+<Link href="/path">
+  <Button>Click me</Button>  {/* <a> wrapping <button> */}
+</Link>
+
+// CORRECT: Use asChild to compose elements
+<Button asChild>
+  <Link href="/path">Click me</Link>
+</Button>
+// Renders single <a> with button styles
+```
+
+### Modal Close After Submit
+
+```tsx
+// WRONG: Forgetting to close modal after action
+const handleSubmit = () => {
+  createItem(data);
+  setItems(getItems());
+  // Modal stays open!
+};
+
+// CORRECT: Close modal on successful submit
+const handleSubmit = () => {
+  createItem(data);
+  setIsModalOpen(false);  // Close first
+  setItems(getItems());
+};
+```
+
 ## Testing Checklist
 
 - [ ] Filters update chart and table data

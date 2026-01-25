@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useCallback } from "react";
+import { useState, useEffect, use, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ export default function PortfolioDetailPage({
   }, [id]);
 
   // Calculate aggregated metrics
-  const stats = useCallback(() => {
+  const stats = useMemo(() => {
     if (portfolioProjects.length === 0) {
       return {
         totalProjects: 0,
@@ -213,7 +213,7 @@ export default function PortfolioDetailPage({
     );
   }
 
-  const metrics = stats();
+  const metrics = stats;
 
   return (
     <div className="container mx-auto px-4 py-6">

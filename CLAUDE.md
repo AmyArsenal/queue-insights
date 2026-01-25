@@ -9,21 +9,49 @@
 | Frontend | Next.js 16, React 19, shadcn/ui, Recharts | `frontend/` |
 | Backend | FastAPI, SQLModel | `backend/` |
 | Database | Supabase PostgreSQL | 7 tables |
-| Pipeline | PJM HTML scraper | `data_pipeline/` |
+| **Pipeline** | Firecrawl + validation gates | `pipelines/pjm_cluster/` |
+| Legacy Pipeline | HTML scraper (deprecated) | `data_pipeline/` |
 | Deploy | Vercel + Railway | gridagent.io |
 
 ## Key Files
 
 | Task | File |
 |------|------|
+| **Frontend Docs** | `frontend/FRONTEND.md` |
 | API client | `frontend/src/lib/api.ts` |
 | Cluster page | `frontend/src/app/cluster/page.tsx` |
 | Project detail | `frontend/src/app/cluster/[projectId]/page.tsx` |
+| Portfolio store | `frontend/src/lib/portfolio-store.ts` |
+| Agent components | `frontend/src/components/agent/` |
 | Backend routes | `backend/app/routes/cluster.py` |
 | DB models | `backend/app/models/cluster.py` |
-| Scraper | `data_pipeline/scrapers/pjm_scraper.py` |
-| Data loader | `data_pipeline/load_to_db.py` |
-| Migration | `data_pipeline/migrations/001_cluster_tables.sql` |
+| **Pipeline Docs** | `pipelines/pjm_cluster/PIPELINE.md` |
+| **Pipeline Config** | `pipelines/pjm_cluster/config.py` |
+| DB Migration | `data_pipeline/migrations/001_cluster_tables.sql` |
+
+## Data Pipeline
+
+**Full documentation:** `pipelines/pjm_cluster/PIPELINE.md`
+
+```
+Firecrawl API → Validate → Transform + Excel → Validate → Supabase → Derived Features
+```
+
+**8-step pipeline with validation gates:**
+1. `01_fetch/` - Firecrawl API call
+2. `02_validate_raw/` - Check JSON structure
+3. `03_transform/` - Parse + merge CycleProjects-All.xlsx
+4. `04_validate_merged/` - Allocation integrity checks
+5. `05_load/` - Supabase upsert
+6. `06_validate_db/` - Verify DB matches
+7. `07_derived/` - Percentiles, risk scores
+8. `08_validate_final/` - Final checks
+
+**Key references in `config.py`:**
+- `COST_DEFINITIONS` - Cost category definitions for AI Agent/UI tooltips
+- `UPGRADE_DEFINITIONS` - Upgrade attributes including time_estimate
+- `TIMELINE_RISK` - Interim deliverability rules
+- `SPOT_CHECKS` - Validation test values (AH1-665)
 
 ## Database Schema
 
@@ -31,14 +59,11 @@
 -- National queue (36K rows)
 queue_projects: q_id, region, state, developer, utility, type_clean, mw1, q_year
 
--- PJM Cluster (TC2 Phase 1)
+-- PJM Cluster
 pjm_clusters: id, cluster_name, phase, total_projects, total_mw
-pjm_project_costs: project_id, cluster_id, developer, utility, state, fuel_type,
-    mw_capacity, total_cost, cost_per_kw, risk_score_overall, cost_rank
-pjm_upgrades: id, cluster_id, rtep_id, utility, title, total_cost
-pjm_project_upgrades: project_id, upgrade_id, allocated_cost, percent_allocation
-pjm_facility_overloads: facility_name, loading_pct, total_mw_contribution
-pjm_mw_contributions: facility_overload_id, project_id, mw_contribution
+pjm_project_costs: project_id, cluster_id, costs (5 categories), RD amounts, risk metrics
+pjm_upgrades: id, cluster_id, rtep_id, to_id, utility, title, time_estimate, total_cost
+pjm_project_upgrades: project_id, upgrade_id, percent_allocation, allocated_cost
 ```
 
 ## API Endpoints
@@ -54,17 +79,6 @@ GET /api/cluster/projects?cluster=TC2&phase=PHASE_1
 GET /api/cluster/projects/{id}
 ```
 
-## Risk Score Formula
-
-| Component | Weight | Metric |
-|-----------|--------|--------|
-| Cost | 35% | $/kW percentile |
-| Concentration | 25% | % from largest upgrade |
-| Dependency | 25% | Co-dependent project count |
-| Overloads | 15% | Tagged upgrade count |
-
-Calculated in `load_to_db.py:calculate_risk_scores()` post-load.
-
 ## Design Tokens
 
 ```
@@ -76,10 +90,16 @@ Histogram: #3B82F6   Average line: #F97316 (dashed)
 ## Commands
 
 ```bash
-npm run dev                    # Frontend :3000
-uvicorn app.main:app --port 8001  # Backend
-python run_scraper.py --cluster TC2 --phase PHASE_1 --limit 10
-python load_to_db.py --json output/scraped_*.json
+# Frontend/Backend
+npm run dev                              # Frontend :3000
+uvicorn app.main:app --port 8001         # Backend
+
+# Pipeline (new)
+cd pipelines/pjm_cluster
+python run_pipeline.py --cluster TC2 --phase PHASE_1
+
+# Legacy scraper (deprecated)
+python data_pipeline/run_scraper.py --cluster TC2 --phase PHASE_1
 ```
 
 ## URLs
@@ -97,16 +117,30 @@ python load_to_db.py --json output/scraped_*.json
 - Use SQLModel for queries (not raw SQL)
 - Use shadcn/ui components from `frontend/src/components/ui/`
 - Use Explore agent for codebase questions
-- Use `/compact` after major tasks
+- Reference `frontend/FRONTEND.md` for React patterns and pitfalls
+- Reference `pipelines/pjm_cluster/PIPELINE.md` for pipeline details
+- Reference `pipelines/pjm_cluster/config.py` for definitions
+- Use `useMemo` for computed values, `useCallback` for function references
+- Use `asChild` prop to avoid nested interactive elements
 
 **Don't:**
 - Add LBNL references (removed from branding)
 - Use neon colors (black/white/green only)
 - Read entire large files (use line ranges)
 - Commit secrets or .env files
+- Use `Math.random()` inside `useMemo` (use deterministic hash instead)
 
 ## Current Status
 
 - PJM TC2 Phase 1: Live with 452 projects
-- CORS: gridagent.io configured
-- Planned: MISO, NYISO, SPP agents; Auth; AI assistant
+- New Firecrawl pipeline: Documented, implementation in progress
+- Legacy scraper: Working but deprecated
+- Planned: TC1 data, ML survival model
+
+## Pending Tasks
+
+1. Implement pipeline step scripts (`01_fetch/fetch.py`, etc.)
+2. Run new pipeline on TC2 Phase 1
+3. Validate against existing database
+4. Fetch TC1 Phase 1, 2, 3 data
+5. Build ML model for project survival prediction

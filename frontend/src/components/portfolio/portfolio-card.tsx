@@ -111,15 +111,16 @@ export function PortfolioCard({
           )}
         </div>
 
-        <Link href={`/portfolio/${portfolio.id}`}>
-          <Button
-            variant="outline"
-            className="w-full border-zinc-700 hover:bg-zinc-800"
-          >
+        <Button
+          variant="outline"
+          className="w-full border-zinc-700 hover:bg-zinc-800"
+          asChild
+        >
+          <Link href={`/portfolio/${portfolio.id}`}>
             View Details
             <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );

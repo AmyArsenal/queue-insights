@@ -14,7 +14,6 @@ import {
   Cell,
   ZAxis,
   ComposedChart,
-  ErrorBar,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -60,9 +59,20 @@ interface DistributionChartProps {
   title: string;
   data: CategoryData[];
   valueLabel?: string;
-  showPoints?: boolean;
   maxCategories?: number;
   height?: number;
+}
+
+// Deterministic hash function for stable jitter
+function hashStringToNumber(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  // Normalize to range [-0.5, 0.5]
+  return ((hash % 1000) / 1000) - 0.5;
 }
 
 function calculateQuartiles(values: number[]): { min: number; q1: number; median: number; q3: number; max: number } {
@@ -91,7 +101,6 @@ export function DistributionChart({
   title,
   data,
   valueLabel = "Value",
-  showPoints = true,
   maxCategories = 8,
   height = 300,
 }: DistributionChartProps) {
@@ -109,23 +118,6 @@ export function DistributionChart({
       })
       .sort((a, b) => b.median - a.median); // Sort by median descending
   }, [data, maxCategories]);
-
-  // Prepare scatter data for individual points
-  const scatterData = useMemo(() => {
-    if (!showPoints) return [];
-
-    return data.slice(0, maxCategories).flatMap((item, categoryIndex) => {
-      return item.points.map((point, pointIndex) => ({
-        category: item.category,
-        categoryIndex,
-        value: point.value,
-        id: point.id,
-        label: point.label,
-        // Add jitter to prevent overlap
-        jitter: (Math.random() - 0.5) * 0.3,
-      }));
-    });
-  }, [data, maxCategories, showPoints]);
 
   // Prepare bar chart data with range (Q1 to Q3)
   const barData = useMemo(() => {
@@ -356,7 +348,7 @@ export function BoxPlotChart({
     }).sort((a, b) => b.median - a.median);
   }, [data]);
 
-  // Create scatter points with jitter
+  // Create scatter points with deterministic jitter
   const scatterPoints = useMemo(() => {
     return data.flatMap((item) => {
       const categoryIndex = categoryStats.findIndex(s => s.category === item.category);
@@ -366,8 +358,8 @@ export function BoxPlotChart({
         value: point.value,
         id: point.id,
         label: point.label || point.id,
-        // Jitter for visual separation
-        y: categoryIndex + (Math.random() - 0.5) * 0.4,
+        // Deterministic jitter based on point id for visual separation
+        y: categoryIndex + hashStringToNumber(`${item.category}-${point.id}`) * 0.4,
         color: CATEGORY_COLORS[item.category] || CATEGORY_COLORS.default,
       }));
     });

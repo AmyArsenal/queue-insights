@@ -128,7 +128,8 @@ export default function PortfolioPage() {
       // Create new
       createPortfolio(name, projectIds);
     }
-    // Refresh portfolios
+    // Close modal and refresh portfolios
+    setIsModalOpen(false);
     setPortfolios(getPortfolios());
     setEditingPortfolio(null);
   };

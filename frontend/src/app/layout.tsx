@@ -4,6 +4,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/footer";
+import { AgentProvider } from "@/components/agent/agent-provider";
+import { AgentButton } from "@/components/agent/agent-button";
+import { AgentChat } from "@/components/agent/agent-chat";
 
 // Headings - Modern geometric, futuristic
 const geistSans = Geist({
@@ -65,13 +68,18 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen flex-col bg-black relative">
-            {/* Global starry background */}
-            <div className="stars-container fixed inset-0 pointer-events-none" />
-            <Header />
-            <main className="flex-1 relative z-10">{children}</main>
-            <Footer />
-          </div>
+          <AgentProvider>
+            <div className="flex min-h-screen flex-col bg-black relative">
+              {/* Global starry background */}
+              <div className="stars-container fixed inset-0 pointer-events-none" />
+              <Header />
+              <main className="flex-1 relative z-10">{children}</main>
+              <Footer />
+            </div>
+            {/* Global floating agent */}
+            <AgentButton />
+            <AgentChat />
+          </AgentProvider>
         </ThemeProvider>
       </body>
     </html>

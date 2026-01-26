@@ -25,9 +25,50 @@
 | Agent components | `frontend/src/components/agent/` |
 | Backend routes | `backend/app/routes/cluster.py` |
 | DB models | `backend/app/models/cluster.py` |
+| **Agent module** | `backend/app/agent/` |
 | **Pipeline Docs** | `pipelines/pjm_cluster/PIPELINE.md` |
 | **Pipeline Config** | `pipelines/pjm_cluster/config.py` |
 | DB Migration | `data_pipeline/migrations/001_cluster_tables.sql` |
+
+## GridAgent AI
+
+ReACT-based AI agent with PJM domain expertise.
+
+**Architecture:**
+```
+Frontend → POST /api/agent/chat/v2 → OpenRouter (Claude) → Tool Calls → Response
+```
+
+**Agent Module (`backend/app/agent/`):**
+| File | Purpose |
+|------|---------|
+| `pjm_knowledge.py` | Domain expertise, source routing, intent detection |
+| `system_prompt.py` | Dynamic prompt builder, ReACT framework |
+| `tools.py` | Tool implementations (query_db, firecrawl, e2b) |
+
+**Tools Available:**
+| Tool | Description |
+|------|-------------|
+| `query_db` | SQL queries against PJM database (read-only) |
+| `firecrawl_scrape` | Scrape PJM pages (IPS, TEAC, cycle-status) |
+| `firecrawl_search` | Web search for announcements, filings |
+| `firecrawl_map` | Map URLs on a website |
+| `execute_code` | Python sandbox (pandas, matplotlib, pdfplumber) |
+
+**Source Priority (baked into agent):**
+| Question Type | Primary Source |
+|---------------|----------------|
+| Timelines, deadlines | IPS meetings |
+| Cluster FAQs, results | cycle-service-request-status |
+| Rules, process | Manual 14H, OATT |
+| Project data, benchmarks | Database (NEVER hardcode thresholds) |
+
+**Environment Variables:**
+```bash
+OPENROUTER_API_KEY=sk-or-v1-...   # Required - LLM calls via OpenRouter
+FIRECRAWL_API_KEY=fc-...          # Required - Web scraping
+E2B_API_KEY=e2b_...               # Optional - Code execution sandbox
+```
 
 ## Data Pipeline
 
@@ -77,6 +118,11 @@ GET /api/cluster/clusters
 GET /api/cluster/summary/{cluster}/{phase}
 GET /api/cluster/projects?cluster=TC2&phase=PHASE_1
 GET /api/cluster/projects/{id}
+
+# Agent
+POST /api/agent/chat/v2    # ReACT agent with tool use
+POST /api/agent/chat       # Simple keyword-based (legacy)
+POST /api/agent/query      # Parameterized chart query
 ```
 
 ## Design Tokens
@@ -133,14 +179,17 @@ python data_pipeline/run_scraper.py --cluster TC2 --phase PHASE_1
 ## Current Status
 
 - PJM TC2 Phase 1: Live with 452 projects
+- GridAgent AI: ReACT agent with OpenRouter + Firecrawl + E2B (complete)
 - New Firecrawl pipeline: Documented, implementation in progress
 - Legacy scraper: Working but deprecated
 - Planned: TC1 data, ML survival model
 
 ## Pending Tasks
 
-1. Implement pipeline step scripts (`01_fetch/fetch.py`, etc.)
-2. Run new pipeline on TC2 Phase 1
-3. Validate against existing database
-4. Fetch TC1 Phase 1, 2, 3 data
-5. Build ML model for project survival prediction
+1. Add E2B_API_KEY to Railway for code execution
+2. Build three-panel UI for agent (Phase 3)
+3. Implement pipeline step scripts (`01_fetch/fetch.py`, etc.)
+4. Run new pipeline on TC2 Phase 1
+5. Validate against existing database
+6. Fetch TC1 Phase 1, 2, 3 data
+7. Build ML model for project survival prediction

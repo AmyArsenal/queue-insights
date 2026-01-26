@@ -441,12 +441,14 @@ export async function getClusterStatsByUtility(
 }
 
 // ============================================================================
-// GRIDAGENT CHAT API
+// GRIDAGENT CHAT API (V2 - ReACT Agent Loop)
 // ============================================================================
 
 export interface AgentChatRequest {
   message: string;
+  conversation_history?: Array<{ role: string; content: string }>;
   context?: Record<string, unknown>;
+  model?: string;
 }
 
 export interface AgentChartData {
@@ -456,14 +458,22 @@ export interface AgentChartData {
   nameKey?: string;
 }
 
+export interface AgentToolCall {
+  name: string;
+  input: Record<string, unknown>;
+  result?: Record<string, unknown>;
+}
+
 export interface AgentChatResponse {
   content: string;
   chart?: AgentChartData;
   sources: string[];
+  tool_calls?: AgentToolCall[];
+  thinking?: string | null;  // Agent's reasoning trace
 }
 
 export async function sendAgentMessage(request: AgentChatRequest): Promise<AgentChatResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/agent/chat`, {
+  const response = await fetch(`${API_BASE_URL}/api/agent/chat/v2`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -472,6 +482,8 @@ export async function sendAgentMessage(request: AgentChatRequest): Promise<Agent
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Agent API error:", errorText);
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
 

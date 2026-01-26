@@ -109,7 +109,7 @@ python data_pipeline/run_scraper.py --cluster TC2 --phase PHASE_1
 
 ## Skills (`.claude/commands/`)
 
-`/deploy` `/db-status` `/add-chart` `/add-endpoint` `/add-scraper` `/debug`
+`/deploy` `/db-status` `/add-chart` `/add-endpoint` `/add-scraper` `/debug` `/agent`
 
 ## Rules
 

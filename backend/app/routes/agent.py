@@ -1,17 +1,40 @@
 """
-API routes for GridAgent - NLP to SQL query engine
+API routes for GridAgent - AI Assistant for PJM Interconnection Intelligence
+
+This module provides the API endpoints for the GridAgent chat interface.
+Uses OpenRouter for LLM calls with ReACT loop for tool execution.
 """
+import os
+import json
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
-from typing import Optional, List, Dict, Any, Literal
+from typing import Optional, List, Dict, Any, Literal, AsyncGenerator
 from pydantic import BaseModel
 from decimal import Decimal
+import httpx
 
 from app.database import get_session
 from app.models.cluster import PJMCluster, PJMProjectCost, PJMUpgrade, PJMProjectUpgrade
 from app.models.queue_project import QueueProject
 
+# Import the new agent module
+from app.agent import (
+    build_system_prompt,
+    get_tool_schemas,
+    execute_tool,
+    parse_tool_calls,
+    format_tool_result_for_claude,
+)
+
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+# Configuration
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = "anthropic/claude-sonnet-4"
+MAX_TOOL_ITERATIONS = 10  # Prevent infinite loops
 
 
 # ============================================================================
@@ -41,6 +64,8 @@ class ChatRequest(BaseModel):
     """Chat message request"""
     message: str
     context: Optional[Dict[str, Any]] = None  # Optional context (selected project, etc.)
+    conversation_history: Optional[List[Dict[str, str]]] = None  # Previous messages
+    model: Optional[str] = None  # Model override
 
 
 class ChatResponse(BaseModel):
@@ -48,6 +73,24 @@ class ChatResponse(BaseModel):
     content: str
     chart: Optional[Dict[str, Any]] = None
     sources: List[str] = []
+    tool_calls: Optional[List[Dict[str, Any]]] = None  # Tool calls made
+    thinking: Optional[str] = None  # Agent's reasoning (for debugging)
+
+
+class ToolCall(BaseModel):
+    """A single tool call"""
+    id: str
+    name: str
+    input: Dict[str, Any]
+
+
+class ToolResult(BaseModel):
+    """Result of a tool call"""
+    id: str
+    name: str
+    result: Any
+    success: bool
+    error: Optional[str] = None
 
 
 # ============================================================================
@@ -72,6 +115,240 @@ def get_cluster_id(session: Session, cluster_name: str = "TC2", phase: str = "PH
         )
     ).first()
     return cluster.id if cluster else None
+
+
+# ============================================================================
+# OPENROUTER CLIENT - LLM API Integration
+# ============================================================================
+
+async def call_openrouter(
+    messages: List[Dict[str, Any]],
+    tools: Optional[List[Dict]] = None,
+    model: str = DEFAULT_MODEL,
+) -> Dict[str, Any]:
+    """
+    Call OpenRouter API with messages and optional tools.
+
+    Args:
+        messages: List of message dicts with role and content
+        tools: Optional list of tool definitions
+        model: Model to use (default: claude-sonnet-4)
+
+    Returns:
+        OpenRouter API response
+    """
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENROUTER_API_KEY not configured"
+        )
+
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 8192,
+    }
+
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        response = await client.post(
+            f"{OPENROUTER_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://gridagent.io",
+                "X-Title": "GridAgent",
+            },
+            json=payload,
+        )
+
+        if response.status_code != 200:
+            error_text = response.text
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"OpenRouter API error: {error_text}"
+            )
+
+        return response.json()
+
+
+async def run_agent_loop(
+    user_message: str,
+    conversation_history: Optional[List[Dict]] = None,
+    context: Optional[Dict] = None,
+    model: str = DEFAULT_MODEL,
+) -> Dict[str, Any]:
+    """
+    Run the ReACT agent loop.
+
+    This function:
+    1. Builds a dynamic system prompt based on the query
+    2. Calls OpenRouter with the system prompt and tools
+    3. Executes any tool calls
+    4. Continues until the model stops calling tools or max iterations
+
+    Args:
+        user_message: The user's question
+        conversation_history: Previous messages in the conversation
+        context: Additional context (selected project, etc.)
+        model: Model to use
+
+    Returns:
+        Dict with content, tool_calls, sources, thinking
+    """
+    # Build dynamic system prompt
+    system_prompt = build_system_prompt(
+        user_query=user_message,
+        include_full_schema=True,
+        conversation_context=json.dumps(context) if context else None,
+    )
+
+    # Get tool schemas for function calling
+    tools = get_tool_schemas()
+
+    # Convert tools to OpenRouter format (OpenAI-compatible)
+    openrouter_tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool["input_schema"],
+            }
+        }
+        for tool in tools
+    ]
+
+    # Build messages
+    messages = [{"role": "system", "content": system_prompt}]
+
+    # Add conversation history
+    if conversation_history:
+        messages.extend(conversation_history)
+
+    # Add current user message
+    messages.append({"role": "user", "content": user_message})
+
+    # Track tool calls for response
+    all_tool_calls = []
+    sources = []
+    thinking = []
+
+    # ReACT Loop
+    for iteration in range(MAX_TOOL_ITERATIONS):
+        # Call OpenRouter
+        response = await call_openrouter(messages, openrouter_tools, model)
+
+        choice = response.get("choices", [{}])[0]
+        message = choice.get("message", {})
+        finish_reason = choice.get("finish_reason")
+
+        # Extract any thinking (text before tool calls)
+        if message.get("content"):
+            thinking.append(message["content"])
+
+        # Check if model wants to use tools
+        tool_calls = message.get("tool_calls", [])
+
+        if not tool_calls or finish_reason == "stop":
+            # No more tool calls, return final response
+            return {
+                "content": message.get("content", ""),
+                "tool_calls": all_tool_calls,
+                "sources": list(set(sources)),
+                "thinking": "\n\n".join(thinking) if thinking else None,
+            }
+
+        # Execute tool calls
+        messages.append(message)  # Add assistant message with tool calls
+
+        for tool_call in tool_calls:
+            tool_id = tool_call.get("id")
+            function = tool_call.get("function", {})
+            tool_name = function.get("name")
+            tool_args = json.loads(function.get("arguments", "{}"))
+
+            # Execute the tool
+            result = await execute_tool(tool_name, **tool_args)
+
+            # Track the call
+            all_tool_calls.append({
+                "id": tool_id,
+                "name": tool_name,
+                "input": tool_args,
+                "result": result["result"] if result["success"] else None,
+                "error": result["error"],
+                "success": result["success"],
+            })
+
+            # Add source based on tool
+            if tool_name == "query_db":
+                sources.append("GridAgent Database")
+            elif tool_name == "firecrawl_scrape":
+                sources.append(f"PJM Web: {tool_args.get('url', 'Unknown')}")
+            elif tool_name == "firecrawl_search":
+                sources.append("Web Search")
+
+            # Format result for OpenRouter
+            tool_result_content = json.dumps(
+                result["result"] if result["success"] else {"error": result["error"]},
+                default=str
+            )
+
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_id,
+                "content": tool_result_content[:50000],  # Limit size
+            })
+
+    # Max iterations reached
+    return {
+        "content": "I've made several attempts to answer your question but need more information. Could you please rephrase or provide more context?",
+        "tool_calls": all_tool_calls,
+        "sources": list(set(sources)),
+        "thinking": "\n\n".join(thinking) if thinking else None,
+    }
+
+
+# ============================================================================
+# ADVANCED CHAT ENDPOINT - OpenRouter + ReACT
+# ============================================================================
+
+@router.post("/chat/v2", response_model=ChatResponse)
+async def chat_v2(request: ChatRequest):
+    """
+    Advanced chat endpoint with full ReACT agent loop.
+
+    This endpoint:
+    1. Builds a dynamic system prompt based on the query
+    2. Uses OpenRouter to call Claude with tool use
+    3. Executes tools (query_db, firecrawl, execute_code)
+    4. Returns the final response with sources
+
+    Use this for complex queries that need web scraping or analysis.
+    """
+    try:
+        result = await run_agent_loop(
+            user_message=request.message,
+            conversation_history=request.conversation_history,
+            context=request.context,
+            model=request.model or DEFAULT_MODEL,
+        )
+
+        return ChatResponse(
+            content=result["content"],
+            sources=result["sources"],
+            tool_calls=result["tool_calls"],
+            thinking=result["thinking"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================

@@ -18,5 +18,9 @@ python-dotenv==1.0.1
 # CORS
 python-multipart==0.0.18
 
-# AI (Phase 5)
+# AI / Agent
 anthropic==0.42.0
+httpx==0.28.1
+
+# E2B Code Execution (optional - for execute_code tool)
+e2b-code-interpreter==1.0.3

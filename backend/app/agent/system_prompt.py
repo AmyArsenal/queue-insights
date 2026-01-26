@@ -109,7 +109,7 @@ Run Python code in a sandboxed E2B environment.
 ```json
 {
     "name": "execute_code",
-    "description": "Execute Python code with pandas, matplotlib, etc.",
+    "description": "Execute Python code in secure sandbox",
     "parameters": {
         "code": "Python code to execute",
         "purpose": "What the code accomplishes"
@@ -117,13 +117,34 @@ Run Python code in a sandboxed E2B environment.
 }
 ```
 
-USE FOR:
-- Creating charts and visualizations
-- Complex data analysis
-- PDF parsing with pdfplumber
-- Data transformations
+AVAILABLE PACKAGES:
+- pandas, numpy - Data manipulation
+- matplotlib, seaborn - Visualizations (returns base64 PNG)
+- pdfplumber - PDF text extraction
+- requests - HTTP requests
+- openpyxl - Excel file handling
 
-FILES persist in /workspace/ between calls.
+USE FOR:
+- Creating charts and visualizations (matplotlib plots returned as images)
+- Complex data analysis and transformations
+- PDF parsing with pdfplumber
+- Statistical analysis
+
+EXAMPLE - Generate a chart:
+```python
+import matplotlib.pyplot as plt
+import pandas as pd
+
+data = {'fuel': ['Solar', 'Wind', 'Storage'], 'avg_cost': [450, 380, 620]}
+df = pd.DataFrame(data)
+plt.figure(figsize=(8, 5))
+plt.bar(df['fuel'], df['avg_cost'], color=['#FBBF24', '#14B8A6', '#8B5CF6'])
+plt.title('Average $/kW by Fuel Type')
+plt.ylabel('$/kW')
+plt.show()  # This returns the image
+```
+
+NOTE: Files do NOT persist between separate tool calls (each call is a fresh sandbox).
 
 ## 4. firecrawl_search
 Search the web using Firecrawl.
@@ -650,13 +671,13 @@ def get_tool_schemas() -> List[dict]:
         },
         {
             "name": "execute_code",
-            "description": "Execute Python code in a sandboxed E2B environment. Has pandas, numpy, matplotlib, pdfplumber available. Files persist in /workspace/.",
+            "description": "Execute Python code in secure E2B sandbox. Available: pandas, numpy, matplotlib, seaborn, pdfplumber, requests, openpyxl. Matplotlib plots return as base64 PNG images. Each call is a fresh sandbox.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "Python code to execute"
+                        "description": "Python code to execute. Use plt.show() to return charts as images."
                     },
                     "purpose": {
                         "type": "string",

@@ -344,21 +344,75 @@ async def firecrawl_map(url: str) -> dict:
 
 E2B_API_KEY = os.getenv("E2B_API_KEY")
 
+# Pre-installed packages in E2B sandbox
+E2B_PACKAGES = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "pdfplumber",
+    "requests",
+    "openpyxl",
+]
+
+
+def _run_code_sync(code: str) -> dict:
+    """
+    Synchronous code execution in E2B sandbox.
+    Called via asyncio.to_thread() to avoid blocking.
+    """
+    from e2b_code_interpreter import Sandbox
+
+    with Sandbox(api_key=E2B_API_KEY) as sandbox:
+        execution = sandbox.run_code(code)
+
+        # Collect outputs
+        stdout = []
+        stderr = []
+        results = []
+
+        for output in execution.logs.stdout:
+            stdout.append(output)
+
+        for output in execution.logs.stderr:
+            stderr.append(output)
+
+        for result in execution.results:
+            if result.png:
+                # Base64 encoded PNG for frontend display
+                results.append({"type": "image", "format": "png", "data": result.png})
+            elif result.text:
+                results.append({"type": "text", "data": result.text})
+
+        return {
+            "stdout": "\n".join(stdout),
+            "stderr": "\n".join(stderr),
+            "results": results,
+            "error": str(execution.error) if execution.error else None,
+            "has_error": execution.error is not None,
+        }
+
 
 async def execute_code(code: str, purpose: str = "") -> dict:
     """
     Execute Python code in E2B sandbox.
 
-    Available packages: pandas, numpy, matplotlib, pdfplumber
-    Files persist in /workspace/ between calls.
+    Available packages: pandas, numpy, matplotlib, seaborn, pdfplumber, requests, openpyxl
+    Files persist in /workspace/ between calls within the same sandbox session.
 
     Args:
         code: Python code to execute
-        purpose: What this code accomplishes
+        purpose: What this code accomplishes (for logging/debugging)
 
     Returns:
-        Tool result with execution output or error
+        Tool result with:
+        - stdout: Standard output from code
+        - stderr: Standard error from code
+        - results: List of outputs (text, images as base64 PNG)
+        - error: Error message if execution failed
     """
+    import asyncio
+
     if not E2B_API_KEY:
         return tool_result(
             success=False,
@@ -369,46 +423,25 @@ async def execute_code(code: str, purpose: str = "") -> dict:
     start_time = time.time()
 
     try:
-        # Import E2B SDK (optional dependency)
-        from e2b_code_interpreter import Sandbox
+        # Run synchronous E2B code in thread pool to avoid blocking
+        result = await asyncio.to_thread(_run_code_sync, code)
+        elapsed = time.time() - start_time
 
-        # Create sandbox and execute
-        with Sandbox(api_key=E2B_API_KEY) as sandbox:
-            execution = sandbox.run_code(code)
-
-            elapsed = time.time() - start_time
-
-            # Collect outputs
-            stdout = []
-            stderr = []
-            results = []
-
-            for output in execution.logs.stdout:
-                stdout.append(output)
-
-            for output in execution.logs.stderr:
-                stderr.append(output)
-
-            for result in execution.results:
-                if result.png:
-                    results.append({"type": "image", "data": result.png})
-                elif result.text:
-                    results.append({"type": "text", "data": result.text})
-
-            return tool_result(
-                success=execution.error is None,
-                result={
-                    "stdout": "\n".join(stdout),
-                    "stderr": "\n".join(stderr),
-                    "results": results,
-                    "error": str(execution.error) if execution.error else None,
-                },
-                metadata={
-                    "purpose": purpose,
-                    "elapsed_ms": round(elapsed * 1000, 2),
-                    "code_length": len(code),
-                }
-            )
+        return tool_result(
+            success=not result["has_error"],
+            result={
+                "stdout": result["stdout"],
+                "stderr": result["stderr"],
+                "results": result["results"],
+                "error": result["error"],
+            },
+            metadata={
+                "purpose": purpose,
+                "elapsed_ms": round(elapsed * 1000, 2),
+                "code_length": len(code),
+                "available_packages": E2B_PACKAGES,
+            }
+        )
 
     except ImportError:
         return tool_result(

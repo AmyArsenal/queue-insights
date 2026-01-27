@@ -23,6 +23,7 @@
 | Project detail | `frontend/src/app/cluster/[projectId]/page.tsx` |
 | Portfolio store | `frontend/src/lib/portfolio-store.ts` |
 | Agent components | `frontend/src/components/agent/` |
+| **Agent page (3-panel)** | `frontend/src/app/agent/page.tsx` |
 | Backend routes | `backend/app/routes/cluster.py` |
 | DB models | `backend/app/models/cluster.py` |
 | **Agent module** | `backend/app/agent/` |
@@ -69,6 +70,25 @@ OPENROUTER_API_KEY=sk-or-v1-...   # Required - LLM calls via OpenRouter
 FIRECRAWL_API_KEY=fc-...          # Required - Web scraping
 E2B_API_KEY=e2b_...               # Optional - Code execution sandbox
 ```
+
+**Three-Panel UI (`/agent` page):**
+```
+┌──────────────┬─────────────────────────┬──────────────┐
+│  Left Panel  │     Center Panel        │ Right Panel  │
+│  (18% width) │     (64% width)         │ (18% width)  │
+│              │                         │              │
+│  Execution   │     Main Chat           │   Details    │
+│  Trace       │     Interface           │   Panel      │
+│              │                         │              │
+│  - Tool list │  - Messages             │  - Sources   │
+│  - Duration  │  - Charts               │  - Thinking  │
+│  - Status    │  - Input                │  - Tool I/O  │
+└──────────────┴─────────────────────────┴──────────────┘
+```
+- Left panel: Tool execution timeline (query_db, firecrawl, etc.)
+- Center panel: Chat with charts, sources, collapsible thinking
+- Right panel: Details for selected tool/message (input/output, sources)
+- Panels are resizable with drag handles
 
 ## Data Pipeline
 
@@ -180,16 +200,17 @@ python data_pipeline/run_scraper.py --cluster TC2 --phase PHASE_1
 
 - PJM TC2 Phase 1: Live with 452 projects
 - GridAgent AI: ReACT agent with OpenRouter + Firecrawl + E2B (complete)
+- Three-panel UI: Complete (`/agent` page with tool trace, chat, details)
 - New Firecrawl pipeline: Documented, implementation in progress
 - Legacy scraper: Working but deprecated
-- Planned: TC1 data, ML survival model
+- Planned: TC1 data, ML survival model, Skills architecture
 
 ## Pending Tasks
 
 1. Add E2B_API_KEY to Railway for code execution
-2. Build three-panel UI for agent (Phase 3)
-3. Implement pipeline step scripts (`01_fetch/fetch.py`, etc.)
-4. Run new pipeline on TC2 Phase 1
-5. Validate against existing database
-6. Fetch TC1 Phase 1, 2, 3 data
-7. Build ML model for project survival prediction
+2. Implement pipeline step scripts (`01_fetch/fetch.py`, etc.)
+3. Run new pipeline on TC2 Phase 1
+4. Validate against existing database
+5. Fetch TC1 Phase 1, 2, 3 data
+6. Build ML model for project survival prediction
+7. Implement Skills architecture (see `.claude/plans/` for research)

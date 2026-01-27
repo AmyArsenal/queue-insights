@@ -17,6 +17,8 @@
 ```
 frontend/src/
 ├── app/                          # Next.js App Router pages
+│   ├── agent/
+│   │   └── page.tsx              # Three-panel agent UI (tool trace, chat, details)
 │   ├── cluster/
 │   │   ├── page.tsx              # Dashboard with charts + projects table
 │   │   └── [projectId]/
@@ -31,8 +33,8 @@ frontend/src/
 ├── components/
 │   ├── agent/                    # AI Agent components
 │   │   ├── agent-button.tsx      # Floating chat button
-│   │   ├── agent-chat.tsx        # Chat panel UI
-│   │   └── agent-provider.tsx    # React context for agent state
+│   │   ├── agent-chat.tsx        # Chat side panel (Sheet)
+│   │   └── agent-provider.tsx    # React context for agent state (ToolCall, AgentMessage)
 │   │
 │   ├── charts/                   # Tremor chart components
 │   │   ├── distribution-chart.tsx    # Box plot alternative (bar + scatter)
@@ -58,6 +60,7 @@ frontend/src/
 │   │   ├── dropdown-menu.tsx
 │   │   ├── input.tsx
 │   │   ├── popover.tsx
+│   │   ├── resizable.tsx         # Resizable panels (react-resizable-panels v4)
 │   │   ├── select.tsx
 │   │   ├── table.tsx
 │   │   └── ...
